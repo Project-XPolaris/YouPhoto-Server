@@ -1,0 +1,34 @@
+addr: ':8605'
+application: "You photo service"
+instance: "main"
+datasource: "sqlite"
+service:
+  name: "yps"
+  display: "YouPhoto service"
+sqlite:
+  path: './data/database.db'
+youplus:
+  auth: false
+  enablepath: false
+  url: 'http://localhost:8999'
+  rpc: 'localhost:50055'
+  entity:
+    enable: false
+    name: "myservice"
+    version: 1
+log:
+  youlog:
+    application: "YouPhoto"
+    instance: "main"
+    addr: "localhost:50052"
+    retry: 3000
+    remote: false
+thumbnails:
+  provider: "local"
+  service_url: "http://localhost:8020"
+  store_path: "./data/thumbnails"
+register:
+  enable: false
+  endpoints:
+    - localhost:12379
+  regpath: ./reg.yml

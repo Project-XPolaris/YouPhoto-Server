@@ -1,0 +1,7 @@
+./.idea
+./database.db
+.idea/
+/data
+docker-compose.yml
+reg.yml
+main
