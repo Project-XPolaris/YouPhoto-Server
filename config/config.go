@@ -2,15 +2,17 @@ package config
 
 import (
 	"github.com/allentom/harukap/config"
+	"os"
 )
 
 var DefaultConfigProvider *config.Provider
 
 func InitConfigProvider() error {
 	var err error
+	customConfigPath := os.Getenv("YOUPHOTO_CONFIG_PATH")
 	DefaultConfigProvider, err = config.NewProvider(func(provider *config.Provider) {
 		ReadConfig(provider)
-	})
+	}, customConfigPath)
 	return err
 }
 
