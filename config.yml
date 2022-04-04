@@ -1,30 +1,39 @@
-addr: ':8605'
+addr: ':8609'
 application: "You photo service"
 instance: "main"
-datasource: "sqlite"
+datasource:
+  sqlite:
+    type: sqlite
+    path: './data/database.db'
 service:
   name: "yps"
   display: "YouPhoto service"
-sqlite:
-  path: './data/database.db'
 youplus:
   auth: false
   enablepath: false
+  enablerpc: false
   url: 'http://localhost:8999'
   rpc: 'localhost:50055'
   entity:
     enable: false
-    name: "myservice"
+    name: "youplus"
     version: 1
 log:
   youlog:
     application: "YouPhoto"
     instance: "main"
-    addr: "localhost:50052"
-    retry: 3000
-    remote: false
+    engine:
+      local:
+        type: logrus
+      logservice:
+        type: youlogservice
+        address: "localhost:60376"
+      fluentd:
+        type: fluentd
+        url:  "http://localhost:53373"
 thumbnails:
   provider: "local"
+  enable: false
   service_url: "http://localhost:8020"
   store_path: "./data/thumbnails"
 register:
