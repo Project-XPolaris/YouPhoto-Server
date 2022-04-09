@@ -10,6 +10,7 @@ import (
 type RemoveLibraryTaskOutput struct {
 	Id   uint   `json:"id"`
 	Path string `json:"path"`
+	Name string `json:"name"`
 }
 
 type RemoveLibraryTaskOption struct {
@@ -52,7 +53,7 @@ func CreateRemoveLibraryTask(option RemoveLibraryTaskOption) (Task, error) {
 		}
 	}
 	task := RemoveLibraryTask{
-		BaseTask: NewBaseTask(TaskTypeScanLibrary),
+		BaseTask: NewBaseTask(TaskTypeRemove),
 		option:   option,
 	}
 	var library database.Library
@@ -63,6 +64,7 @@ func CreateRemoveLibraryTask(option RemoveLibraryTaskOption) (Task, error) {
 	output := RemoveLibraryTaskOutput{
 		Id:   library.ID,
 		Path: library.Path,
+		Name: library.Name,
 	}
 	task.output = &output
 

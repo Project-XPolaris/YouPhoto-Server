@@ -3,9 +3,11 @@ package httpapi
 import "github.com/projectxpolaris/youphoto/service"
 
 type TaskTemplate struct {
-	Id     string      `json:"id"`
-	Type   string      `json:"type"`
-	Detail interface{} `json:"detail"`
+	Id        string      `json:"id"`
+	Type      string      `json:"type"`
+	Detail    interface{} `json:"detail"`
+	Status    string      `json:"status"`
+	StartTime string      `json:"startTime"`
 }
 
 func NewTaskListTemplate(taskList []service.Task) []*TaskTemplate {
@@ -17,8 +19,10 @@ func NewTaskListTemplate(taskList []service.Task) []*TaskTemplate {
 }
 func NewTaskTemplate(task service.Task) *TaskTemplate {
 	data := &TaskTemplate{
-		Id:   task.GetId(),
-		Type: service.TaskTypeNameMapping[task.GetType()],
+		Id:        task.GetId(),
+		Type:      service.TaskTypeNameMapping[task.GetType()],
+		Status:    service.TaskStatusNameMapping[task.GetStatus()],
+		StartTime: task.GetStartTime().Format(TimeFormat),
 	}
 	output := task.GetOutput()
 	switch output.(type) {
@@ -37,6 +41,7 @@ type ScanLibraryDetail struct {
 	Current     int64  `json:"current"`
 	CurrentPath string `json:"currentPath"`
 	CurrentName string `json:"currentName"`
+	Name        string `json:"name"`
 }
 
 func NewScanLibraryDetail(output *service.ScanTaskOutput) *ScanLibraryDetail {
@@ -46,17 +51,20 @@ func NewScanLibraryDetail(output *service.ScanTaskOutput) *ScanLibraryDetail {
 		Current:     output.Current,
 		CurrentPath: output.CurrentPath,
 		CurrentName: output.CurrentName,
+		Name:        output.Name,
 	}
 }
 
 type RemoveLibraryDetail struct {
 	Id   uint   `json:"id"`
 	Path string `json:"path"`
+	Name string `json:"name"`
 }
 
 func NewRemoveLibraryDetail(output *service.RemoveLibraryTaskOutput) *RemoveLibraryDetail {
 	return &RemoveLibraryDetail{
 		Id:   output.Id,
 		Path: output.Path,
+		Name: output.Name,
 	}
 }

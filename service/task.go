@@ -7,6 +7,7 @@ import (
 	"github.com/projectxpolaris/youphoto/youlog"
 	"github.com/rs/xid"
 	"sync"
+	"time"
 )
 
 type Signal struct {
@@ -42,13 +43,15 @@ type Task interface {
 	GetType() int
 	GetStatus() int
 	GetOutput() interface{}
+	GetStartTime() time.Time
 }
 type BaseTask struct {
-	Id     string
-	Type   int
-	Error  error
-	Status int
-	Logger *youlogcore.Scope
+	Id        string
+	Type      int
+	Error     error
+	Status    int
+	Logger    *youlogcore.Scope
+	StartTime time.Time
 }
 
 func (t *BaseTask) GetId() string {
@@ -61,7 +64,9 @@ func (t *BaseTask) GetType() int {
 func (t *BaseTask) GetStatus() int {
 	return t.Status
 }
-
+func (t *BaseTask) GetStartTime() time.Time {
+	return t.StartTime
+}
 func (t *BaseTask) AbortError(err error) {
 	t.Logger.Error(err.Error())
 	if err != nil {
@@ -76,9 +81,11 @@ func (t *BaseTask) UpdateDoneStatus() {
 func NewBaseTask(taskType int) BaseTask {
 	id := xid.New().String()
 	t := BaseTask{
-		Id:     id,
-		Type:   taskType,
-		Logger: youlog.DefaultYouLogPlugin.Logger.NewScope(fmt.Sprintf("%s-%s", TaskStatusNameMapping[taskType], id)),
+		Id:        id,
+		Type:      taskType,
+		Logger:    youlog.DefaultYouLogPlugin.Logger.NewScope(fmt.Sprintf("%s-%s", TaskStatusNameMapping[taskType], id)),
+		StartTime: time.Now(),
+		Status:    TaskStatusRunning,
 	}
 	return t
 }
@@ -101,7 +108,10 @@ func (p *TaskPool) RemoveTaskById(id string) {
 func (p *TaskPool) AddTask(task Task) {
 	p.Lock()
 	defer p.Unlock()
-	p.Tasks = append(p.Tasks, task)
+	newTasks := make([]Task, 0)
+	newTasks = append(newTasks, task)
+	newTasks = append(newTasks, p.Tasks...)
+	p.Tasks = newTasks
 }
 func GetTaskList() []Task {
 	return DefaultTaskPool.Tasks

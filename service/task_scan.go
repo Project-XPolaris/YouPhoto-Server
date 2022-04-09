@@ -16,6 +16,7 @@ type SyncLibraryTask struct {
 }
 type ScanTaskOutput struct {
 	Id          uint   `json:"id"`
+	Name        string `json:"name"`
 	Path        string `json:"path"`
 	Current     int64  `json:"current"`
 	CurrentPath string `json:"currentPath"`
@@ -79,6 +80,7 @@ func CreateSyncLibraryTask(option CreateScanTaskOption) (Task, error) {
 	output := ScanTaskOutput{
 		Id:   library.ID,
 		Path: library.Path,
+		Name: library.Name,
 	}
 	task.output = &output
 	task.Logger = task.Logger.WithFields(

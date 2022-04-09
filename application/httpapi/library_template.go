@@ -23,7 +23,7 @@ func NewBaseLibraryTemplate(library *database.Library) BaseLibraryTemplate {
 }
 
 func NewBaseLibraryTemplateList(libraries []*database.Library) []BaseLibraryTemplate {
-	var baseLibraryTemplates []BaseLibraryTemplate
+	baseLibraryTemplates := make([]BaseLibraryTemplate, 0)
 	for _, library := range libraries {
 		baseLibraryTemplates = append(baseLibraryTemplates, NewBaseLibraryTemplate(library))
 	}
