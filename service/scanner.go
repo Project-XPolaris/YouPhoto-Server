@@ -7,7 +7,7 @@ import (
 )
 
 var scanTargetExtensions = []string{
-	".jpg", ".png", ".jpge", ".gif", ".bmp",
+	".jpg", ".png", ".jpeg", ".bmp",
 }
 
 type ImageScanner struct {

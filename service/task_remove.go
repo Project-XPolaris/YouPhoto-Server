@@ -8,9 +8,11 @@ import (
 )
 
 type RemoveLibraryTaskOutput struct {
-	Id   uint   `json:"id"`
-	Path string `json:"path"`
-	Name string `json:"name"`
+	Id      uint   `json:"id"`
+	Path    string `json:"path"`
+	Name    string `json:"name"`
+	Total   int64  `json:"total"`
+	Current int64  `json:"current"`
 }
 
 type RemoveLibraryTaskOption struct {
@@ -73,12 +75,18 @@ func CreateRemoveLibraryTask(option RemoveLibraryTaskOption) (Task, error) {
 		"libraryId": library.ID,
 	})
 	go func() {
-		err := database.Instance.Unscoped().Model(&database.Image{}).Where("library_id = ?", library.ID).Delete(database.Image{}).Error
+		err = database.Instance.Model(&database.Image{}).Where("library_id = ?", library.ID).Count(&output.Total).Error
+		if err != nil {
+			task.AbortError(err)
+			return
+		}
+		err = database.Instance.Unscoped().Model(&database.Image{}).Where("library_id = ?", library.ID).Delete(database.Image{}).Error
 		if err != nil {
 			task.AbortError(err)
 			return
 		}
 		for _, image := range library.Images {
+			output.Current++
 			os.Remove(utils.GetThumbnailsPath(image.Thumbnail))
 		}
 		err = database.Instance.Unscoped().Model(&database.Library{}).Where("id = ?", library.ID).Delete(library).Error

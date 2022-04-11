@@ -21,6 +21,7 @@ type ScanTaskOutput struct {
 	Current     int64  `json:"current"`
 	CurrentPath string `json:"currentPath"`
 	CurrentName string `json:"currentName"`
+	Total       int64  `json:"total"`
 }
 type CreateScanTaskOption struct {
 	LibraryId      uint
@@ -126,8 +127,19 @@ func CreateSyncLibraryTask(option CreateScanTaskOption) (Task, error) {
 				return
 			}
 		}
+
+		//count total
+
 		scanner := NewImageScanner(library.Path)
 		idx := 0
+		scanner.OnHit = func(path string) {
+			output.Total += 1
+		}
+		err = scanner.Scan()
+		if err != nil {
+			task.AbortError(err)
+			return
+		}
 		scanner.OnHit = func(path string) {
 			output.Current += int64(idx + 1)
 			output.CurrentPath = path
