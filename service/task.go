@@ -4,7 +4,7 @@ import (
 	"fmt"
 	. "github.com/ahmetb/go-linq/v3"
 	youlogcore "github.com/project-xpolaris/youplustoolkit/youlog"
-	"github.com/projectxpolaris/youphoto/youlog"
+	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/rs/xid"
 	"sync"
 	"time"
@@ -23,7 +23,7 @@ const (
 	TaskStatusError
 )
 
-var TaskLogger = youlog.DefaultYouLogPlugin.Logger.NewScope("Task")
+var TaskLogger = plugins.DefaultYouLogPlugin.Logger.NewScope("Task")
 var TaskTypeNameMapping map[int]string = map[int]string{
 	TaskTypeScanLibrary: "ScanLibrary",
 	TaskTypeRemove:      "RemoveLibrary",
@@ -83,7 +83,7 @@ func NewBaseTask(taskType int) BaseTask {
 	t := BaseTask{
 		Id:        id,
 		Type:      taskType,
-		Logger:    youlog.DefaultYouLogPlugin.Logger.NewScope(fmt.Sprintf("%s-%s", TaskStatusNameMapping[taskType], id)),
+		Logger:    plugins.DefaultYouLogPlugin.Logger.NewScope(fmt.Sprintf("%s-%s", TaskStatusNameMapping[taskType], id)),
 		StartTime: time.Now(),
 		Status:    TaskStatusRunning,
 	}

@@ -3,12 +3,12 @@ package httpapi
 import (
 	"github.com/allentom/haruka"
 	"github.com/projectxpolaris/youphoto/commons"
-	"github.com/projectxpolaris/youphoto/youlog"
+	"github.com/projectxpolaris/youphoto/plugins"
 )
 
 func AbortError(ctx *haruka.Context, err error, status int) {
 	if apiError, ok := err.(*commons.APIError); ok {
-		youlog.DefaultYouLogPlugin.Logger.Error(apiError.Err.Error())
+		plugins.DefaultYouLogPlugin.Logger.Error(apiError.Err.Error())
 		ctx.JSONWithStatus(haruka.JSON{
 			"success": false,
 			"err":     apiError.Desc,
@@ -16,7 +16,7 @@ func AbortError(ctx *haruka.Context, err error, status int) {
 		}, status)
 		return
 	}
-	youlog.DefaultYouLogPlugin.Logger.Error(err.Error())
+	plugins.DefaultYouLogPlugin.Logger.Error(err.Error())
 	ctx.JSONWithStatus(haruka.JSON{
 		"success": false,
 		"err":     err.(error).Error(),

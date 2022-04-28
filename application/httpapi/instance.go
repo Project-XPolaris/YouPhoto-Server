@@ -17,7 +17,6 @@ func GetEngine() *haruka.Engine {
 	e.UseMiddleware(middleware.NewLoggerMiddleware())
 	e.UseMiddleware(middleware.NewPaginationMiddleware("page", "pageSize", 1, 20))
 	e.UseMiddleware(&AuthMiddleware{})
-	e.UseMiddleware(&ReadUserMiddleware{})
 	e.Router.GET("/libraries", getLibraryListHandler)
 	e.Router.POST("/libraries", createLibraryHandler)
 	e.Router.POST("/library/{id:[0-9]+}/scan", scanLibraryHandler)
@@ -29,5 +28,8 @@ func GetEngine() *haruka.Engine {
 	e.Router.GET("/user/current", getCurrentUserHandler)
 	e.Router.GET("/readdir", readDirectoryHandler)
 	e.Router.GET("/tasks", taskListHandler)
+	e.Router.GET("/oauth/youauth", generateAccessCodeWithYouAuthHandler)
+	e.Router.POST("/oauth/youplus", YouPlusLoginHandler)
+	e.Router.GET("/user/auth", youPlusTokenHandler)
 	return e
 }

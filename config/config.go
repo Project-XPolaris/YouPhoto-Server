@@ -1,7 +1,9 @@
 package config
 
 import (
+	"fmt"
 	"github.com/allentom/harukap/config"
+	"github.com/mitchellh/mapstructure"
 	"os"
 )
 
@@ -18,6 +20,14 @@ func InitConfigProvider() error {
 
 var Instance Config
 
+type AuthConfig struct {
+	Name   string
+	Enable bool
+	AppId  string
+	Secret string
+	Url    string
+	Type   string
+}
 type Config struct {
 	ThumbnailStorePath  string
 	ThumbnailServiceUrl string
@@ -26,6 +36,9 @@ type Config struct {
 	YouPlusUrl          string
 	Datasource          string
 	YouPlusPathEnable   bool
+	Auths               []*AuthConfig
+	YouAuthConfig       *AuthConfig
+	YouAuthConfigPrefix string
 }
 
 func ReadConfig(provider *config.Provider) {
@@ -41,5 +54,22 @@ func ReadConfig(provider *config.Provider) {
 		EnableAuth:          configer.GetBool("youplus.auth"),
 		Datasource:          configer.GetString("datasource"),
 		YouPlusPathEnable:   configer.GetBool("youplus.enablepath"),
+		Auths:               make([]*AuthConfig, 0),
 	}
+	// read auth config
+	rawAuth := configer.GetStringMap("auth")
+	for key := range rawAuth {
+		authConfig := &AuthConfig{}
+		err := mapstructure.Decode(rawAuth[key], authConfig)
+		if err != nil {
+			panic(err)
+		}
+		Instance.Auths = append(Instance.Auths, authConfig)
+		if authConfig.Type == "youauth" {
+			Instance.YouAuthConfig = authConfig
+			Instance.YouAuthConfigPrefix = fmt.Sprintf("auth.%s", key)
+		}
+	}
+	fmt.Println(Instance)
+
 }

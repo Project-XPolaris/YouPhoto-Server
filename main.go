@@ -8,8 +8,6 @@ import (
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/utils"
-	"github.com/projectxpolaris/youphoto/youlog"
-	"github.com/projectxpolaris/youphoto/youplus"
 	"github.com/sirupsen/logrus"
 	"os"
 )
@@ -19,11 +17,11 @@ func main() {
 	if err != nil {
 		logrus.Fatal(err)
 	}
-	err = youlog.DefaultYouLogPlugin.OnInit(config.DefaultConfigProvider)
+	err = plugins.DefaultYouLogPlugin.OnInit(config.DefaultConfigProvider)
 	if err != nil {
 		logrus.Fatal(err)
 	}
-	bootLogger := youlog.DefaultYouLogPlugin.Logger.NewScope("boot")
+	bootLogger := plugins.DefaultYouLogPlugin.Logger.NewScope("boot")
 	bootLogger.Info("init thumbnail path")
 	isThumbnailsStoreExist := utils.CheckFileExist(config.Instance.ThumbnailStorePath)
 	if !isThumbnailsStoreExist {
@@ -35,11 +33,15 @@ func main() {
 	}
 	appEngine := harukap.NewHarukaAppEngine()
 	appEngine.ConfigProvider = config.DefaultConfigProvider
-	appEngine.LoggerPlugin = youlog.DefaultYouLogPlugin
-	appEngine.UsePlugin(youplus.DefaultYouPlusPlugin)
+	appEngine.LoggerPlugin = plugins.DefaultYouLogPlugin
+	appEngine.UsePlugin(plugins.DefaultYouPlusPlugin)
 	appEngine.UsePlugin(database.DefaultPlugin)
 	appEngine.UsePlugin(plugins.DefaultThumbnailServicePlugin)
 	appEngine.UsePlugin(&plugins.DefaultRegisterPlugin)
+	if config.Instance.YouAuthConfig != nil {
+		plugins.DefaultYouAuthOauthPlugin.ConfigPrefix = config.Instance.YouAuthConfigPrefix
+		appEngine.UsePlugin(plugins.DefaultYouAuthOauthPlugin)
+	}
 	appEngine.HttpService = httpapi.GetEngine()
 	if err != nil {
 		logrus.Fatal(err)

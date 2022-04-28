@@ -41,3 +41,15 @@ register:
   endpoints:
     - localhost:12379
   regpath: ./reg.yml
+auth:
+  youauth:
+    enable: false
+    type: youauth
+    url: "http://localhost:8602"
+    appid: "appid"
+    secret: "secret"
+
+  youplus:
+    type: youplus
+    enable: true
+

@@ -4,19 +4,63 @@ import (
 	"fmt"
 	"github.com/allentom/haruka"
 	"github.com/projectxpolaris/youphoto/config"
+	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/service"
-	"github.com/projectxpolaris/youphoto/youplus"
 	"net/http"
 	"os"
 	"path/filepath"
 )
 
 var serviceInfoHandler haruka.RequestHandler = func(context *haruka.Context) {
+	// get oauth addr
+	oauthUrl, err := plugins.DefaultYouAuthOauthPlugin.GetOauthUrl()
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	authMaps := make([]interface{}, 0)
+	configManager := config.DefaultConfigProvider.Manager
+	for key := range configManager.GetStringMap("auth") {
+		authType := configManager.GetString(fmt.Sprintf("auth.%s.type", key))
+		enable := configManager.GetBool(fmt.Sprintf("auth.%s.enable", key))
+		if !enable {
+			continue
+		}
+		switch authType {
+		case "youauth":
+			oauthUrl, err = plugins.DefaultYouAuthOauthPlugin.GetOauthUrl()
+			if err != nil {
+				AbortError(context, err, http.StatusInternalServerError)
+				return
+			}
+			authInfo, err := plugins.DefaultYouAuthOauthPlugin.GetAuthInfo()
+			if err != nil {
+				AbortError(context, err, http.StatusInternalServerError)
+				return
+			}
+			authMaps = append(authMaps, authInfo)
+		case "youplus":
+			authInfo, err := plugins.DefaultYouPlusPlugin.GetAuthInfo("/oauth/youplus")
+			if err != nil {
+				AbortError(context, err, http.StatusInternalServerError)
+				return
+			}
+			authMaps = append(authMaps, authInfo)
+		case "anonymous":
+			authMaps = append(authMaps, haruka.JSON{
+				"type": "anonymous",
+				"name": "Anonymous",
+			})
+		}
+	}
 	context.JSON(haruka.JSON{
 		"success":    true,
 		"name":       "YouPhoto service",
 		"authEnable": config.Instance.EnableAuth,
 		"authUrl":    fmt.Sprintf("%s/%s", config.Instance.YouPlusUrl, "user/auth"),
+		"oauth":      true,
+		"oauthUrl":   oauthUrl,
+		"auth":       authMaps,
 	})
 }
 
@@ -24,7 +68,7 @@ var readDirectoryHandler haruka.RequestHandler = func(context *haruka.Context) {
 	rootPath := context.GetQueryString("path")
 	if config.Instance.YouPlusPathEnable {
 		token := context.Param["token"].(string)
-		items, err := youplus.DefaultYouPlusPlugin.Client.ReadDir(rootPath, token)
+		items, err := plugins.DefaultYouPlusPlugin.Client.ReadDir(rootPath, token)
 		if err != nil {
 			AbortError(context, err, http.StatusInternalServerError)
 			return
