@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"github.com/allentom/haruka"
+	"github.com/projectxpolaris/youphoto/config"
 	"github.com/projectxpolaris/youphoto/service"
 	"github.com/sirupsen/logrus"
 	"net/http"
@@ -17,6 +18,9 @@ var NoAuthPaths = []string{
 }
 
 func (m AuthMiddleware) OnRequest(c *haruka.Context) {
+	if config.Instance.EnableAnonymous {
+		return
+	}
 	for _, path := range NoAuthPaths {
 		if c.Request.URL.Path == path {
 			return

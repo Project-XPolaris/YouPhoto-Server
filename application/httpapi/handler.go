@@ -12,12 +12,6 @@ import (
 )
 
 var serviceInfoHandler haruka.RequestHandler = func(context *haruka.Context) {
-	// get oauth addr
-	oauthUrl, err := plugins.DefaultYouAuthOauthPlugin.GetOauthUrl()
-	if err != nil {
-		AbortError(context, err, http.StatusInternalServerError)
-		return
-	}
 	authMaps := make([]interface{}, 0)
 	configManager := config.DefaultConfigProvider.Manager
 	for key := range configManager.GetStringMap("auth") {
@@ -28,11 +22,6 @@ var serviceInfoHandler haruka.RequestHandler = func(context *haruka.Context) {
 		}
 		switch authType {
 		case "youauth":
-			oauthUrl, err = plugins.DefaultYouAuthOauthPlugin.GetOauthUrl()
-			if err != nil {
-				AbortError(context, err, http.StatusInternalServerError)
-				return
-			}
 			authInfo, err := plugins.DefaultYouAuthOauthPlugin.GetAuthInfo()
 			if err != nil {
 				AbortError(context, err, http.StatusInternalServerError)
@@ -50,6 +39,7 @@ var serviceInfoHandler haruka.RequestHandler = func(context *haruka.Context) {
 			authMaps = append(authMaps, haruka.JSON{
 				"type": "anonymous",
 				"name": "Anonymous",
+				"url":  "",
 			})
 		}
 	}
@@ -59,7 +49,6 @@ var serviceInfoHandler haruka.RequestHandler = func(context *haruka.Context) {
 		"authEnable": config.Instance.EnableAuth,
 		"authUrl":    fmt.Sprintf("%s/%s", config.Instance.YouPlusUrl, "user/auth"),
 		"oauth":      true,
-		"oauthUrl":   oauthUrl,
 		"auth":       authMaps,
 	})
 }

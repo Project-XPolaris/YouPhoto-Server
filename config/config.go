@@ -39,6 +39,7 @@ type Config struct {
 	Auths               []*AuthConfig
 	YouAuthConfig       *AuthConfig
 	YouAuthConfigPrefix string
+	EnableAnonymous     bool
 }
 
 func ReadConfig(provider *config.Provider) {
@@ -46,7 +47,6 @@ func ReadConfig(provider *config.Provider) {
 	configer.SetDefault("addr", ":8000")
 	configer.SetDefault("application", "YouPhoto Service")
 	configer.SetDefault("instance", "main")
-
 	Instance = Config{
 		ThumbnailStorePath:  configer.GetString("thumbnails.store_path"),
 		ThumbnailServiceUrl: configer.GetString("thumbnails.service_url"),
@@ -68,6 +68,9 @@ func ReadConfig(provider *config.Provider) {
 		if authConfig.Type == "youauth" {
 			Instance.YouAuthConfig = authConfig
 			Instance.YouAuthConfigPrefix = fmt.Sprintf("auth.%s", key)
+		}
+		if authConfig.Type == "anonymous" {
+			Instance.EnableAnonymous = configer.GetBool(fmt.Sprintf("auth.%s.enable", key))
 		}
 	}
 	fmt.Println(Instance)

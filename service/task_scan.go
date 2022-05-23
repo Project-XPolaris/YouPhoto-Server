@@ -25,6 +25,7 @@ type ScanTaskOutput struct {
 }
 type CreateScanTaskOption struct {
 	LibraryId      uint
+	UserId         uint
 	OnFileComplete func(task Task)
 	OnFileError    func(task Task, err error)
 	OnError        func(task Task, err error)
@@ -73,10 +74,12 @@ func CreateSyncLibraryTask(option CreateScanTaskOption) (Task, error) {
 			break
 		}
 	}
-	var library database.Library
-	err := database.Instance.Find(&library, option.LibraryId).Error
+	library, err := GetLibraryWithUser(option.LibraryId, option.UserId)
 	if err != nil {
 		return nil, err
+	}
+	if library == nil {
+		return nil, errors.New("library not found")
 	}
 	output := ScanTaskOutput{
 		Id:   library.ID,

@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"github.com/projectxpolaris/youphoto/config"
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/utils"
 	"gorm.io/gorm"
@@ -65,14 +64,16 @@ func CreateImage(path string, libraryId uint, fullPath string) (*database.Image,
 type ImagesQueryBuilder struct {
 	Page      int
 	PageSize  int
-	LibraryId uint     `hsource:"query" hname:"libraryId"`
+	LibraryId []string `hsource:"query" hname:"libraryId"`
 	Orders    []string `hsource:"query" hname:"order"`
 	Random    string   `hsource:"query" hname:"random"`
+	UserId    uint
 }
 
 func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 	var images []*database.Image
 	var count int64
+
 	query := database.Instance.Model(&database.Image{})
 	if q.Page == 0 {
 		q.Page = 1
@@ -80,13 +81,17 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 	if q.PageSize == 0 {
 		q.PageSize = 10
 	}
-	if q.LibraryId != 0 {
-		query = query.Where("library_id = ?", q.LibraryId)
+	query = query.Joins("LEFT JOIN library_users lu on images.library_id = lu.library_id").
+		Joins("LEFT JOIN libraries l on l.id = images.library_id")
+	if len(q.LibraryId) > 0 {
+		query = query.Where("images.library_id IN ? and (l.public = ? or lu.user_id = ?)", q.LibraryId, true, q.UserId)
+	} else {
+		query = query.Where("l.public = ? or lu.user_id = ?", true, q.UserId)
 	}
 	if len(q.Random) > 0 {
-		if config.Instance.Datasource == "sqlite" {
+		if database.Instance.Dialector.Name() == "sqlite" {
 			query = query.Order("random()")
-		} else if config.Instance.Datasource == "mysql" {
+		} else if database.Instance.Dialector.Name() == "mysql" {
 			query = query.Order("RAND()")
 		}
 	} else {
@@ -94,11 +99,13 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 			query = query.Order(fmt.Sprintf("%s", order))
 		}
 	}
-
 	err := query.
 		Offset((q.Page - 1) * q.PageSize).
 		Limit(q.PageSize).
-		Find(&images).Offset(-1).Count(&count).Error
+		Find(&images).
+		Offset(-1).
+		Count(&count).
+		Error
 	if err != nil {
 		return nil, 0, err
 	}
