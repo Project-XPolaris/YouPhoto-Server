@@ -3,6 +3,7 @@ package httpapi
 import (
 	"github.com/allentom/haruka"
 	"github.com/allentom/haruka/middleware"
+	"github.com/projectxpolaris/youphoto/module"
 	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
 )
@@ -14,9 +15,8 @@ var Logger = log.New().WithFields(log.Fields{
 func GetEngine() *haruka.Engine {
 	e := haruka.NewEngine()
 	e.UseCors(cors.AllowAll())
-	e.UseMiddleware(middleware.NewLoggerMiddleware())
+	e.UseMiddleware(module.Auth.AuthMiddleware)
 	e.UseMiddleware(middleware.NewPaginationMiddleware("page", "pageSize", 1, 20))
-	e.UseMiddleware(&AuthMiddleware{})
 	e.Router.GET("/libraries", getLibraryListHandler)
 	e.Router.POST("/libraries", createLibraryHandler)
 	e.Router.POST("/library/{id:[0-9]+}/scan", scanLibraryHandler)

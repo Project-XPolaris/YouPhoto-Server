@@ -1,14 +1,17 @@
 package main
 
 import (
+	"github.com/allentom/haruka"
 	"github.com/allentom/harukap"
 	"github.com/allentom/harukap/cli"
 	"github.com/projectxpolaris/youphoto/application/httpapi"
 	"github.com/projectxpolaris/youphoto/config"
 	"github.com/projectxpolaris/youphoto/database"
+	"github.com/projectxpolaris/youphoto/module"
 	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/utils"
 	"github.com/sirupsen/logrus"
+	"net/http"
 	"os"
 )
 
@@ -34,13 +37,20 @@ func main() {
 	appEngine := harukap.NewHarukaAppEngine()
 	appEngine.ConfigProvider = config.DefaultConfigProvider
 	appEngine.LoggerPlugin = plugins.DefaultYouLogPlugin
+	plugins.CreateDefaultYouPlusPlugin()
 	appEngine.UsePlugin(plugins.DefaultYouPlusPlugin)
 	appEngine.UsePlugin(database.DefaultPlugin)
 	appEngine.UsePlugin(plugins.DefaultThumbnailServicePlugin)
 	appEngine.UsePlugin(&plugins.DefaultRegisterPlugin)
 	if config.Instance.YouAuthConfig != nil {
+		plugins.CreateYouAuthPlugin()
 		plugins.DefaultYouAuthOauthPlugin.ConfigPrefix = config.Instance.YouAuthConfigPrefix
 		appEngine.UsePlugin(plugins.DefaultYouAuthOauthPlugin)
+	}
+	// init module
+	module.CreateAuthModule()
+	module.Auth.AuthMiddleware.OnError = func(ctx *haruka.Context, err error) {
+		httpapi.AbortError(ctx, err, http.StatusForbidden)
 	}
 	appEngine.HttpService = httpapi.GetEngine()
 	if err != nil {

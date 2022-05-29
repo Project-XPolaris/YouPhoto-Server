@@ -3,6 +3,7 @@ package httpapi
 import (
 	"errors"
 	"github.com/allentom/haruka"
+	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/service"
 	"net/http"
 )
@@ -22,8 +23,8 @@ var createLibraryHandler haruka.RequestHandler = func(context *haruka.Context) {
 	}
 	var uid uint = 0
 	if requestBody.Private {
-		if claims, ok := context.Param["claims"]; ok {
-			uid = claims.(service.JwtClaims).GetUserId()
+		if claims, ok := context.Param["claim"]; ok {
+			uid = claims.(*database.User).ID
 		} else {
 			AbortError(context, errors.New("need auth"), http.StatusBadRequest)
 			return
@@ -49,8 +50,8 @@ var getLibraryListHandler haruka.RequestHandler = func(context *haruka.Context) 
 		return
 	}
 	var userId uint = 0
-	if claims, ok := context.Param["claims"]; ok {
-		userId = claims.(service.JwtClaims).GetUserId()
+	if claims, ok := context.Param["claim"]; ok {
+		userId = claims.(*database.User).ID
 	}
 	queryBuilder.UserId = userId
 	libraryList, count, err := queryBuilder.Query()

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/allentom/haruka"
 	"github.com/projectxpolaris/youphoto/config"
+	"github.com/projectxpolaris/youphoto/module"
 	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/service"
 	"net/http"
@@ -12,36 +13,10 @@ import (
 )
 
 var serviceInfoHandler haruka.RequestHandler = func(context *haruka.Context) {
-	authMaps := make([]interface{}, 0)
-	configManager := config.DefaultConfigProvider.Manager
-	for key := range configManager.GetStringMap("auth") {
-		authType := configManager.GetString(fmt.Sprintf("auth.%s.type", key))
-		enable := configManager.GetBool(fmt.Sprintf("auth.%s.enable", key))
-		if !enable {
-			continue
-		}
-		switch authType {
-		case "youauth":
-			authInfo, err := plugins.DefaultYouAuthOauthPlugin.GetAuthInfo()
-			if err != nil {
-				AbortError(context, err, http.StatusInternalServerError)
-				return
-			}
-			authMaps = append(authMaps, authInfo)
-		case "youplus":
-			authInfo, err := plugins.DefaultYouPlusPlugin.GetAuthInfo("/oauth/youplus")
-			if err != nil {
-				AbortError(context, err, http.StatusInternalServerError)
-				return
-			}
-			authMaps = append(authMaps, authInfo)
-		case "anonymous":
-			authMaps = append(authMaps, haruka.JSON{
-				"type": "anonymous",
-				"name": "Anonymous",
-				"url":  "",
-			})
-		}
+	authMaps, err := module.Auth.GetAuthConfig()
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
 	}
 	context.JSON(haruka.JSON{
 		"success":    true,

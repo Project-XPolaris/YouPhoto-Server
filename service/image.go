@@ -96,7 +96,7 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 		}
 	} else {
 		for _, order := range q.Orders {
-			query = query.Order(fmt.Sprintf("%s", order))
+			query = query.Order(fmt.Sprintf("images.%s", order))
 		}
 	}
 	err := query.

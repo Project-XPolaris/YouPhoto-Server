@@ -3,13 +3,10 @@ package service
 import (
 	"errors"
 	"fmt"
-	"github.com/allentom/haruka"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/rs/xid"
 	"gorm.io/gorm"
-	"strings"
 )
 
 const YouAuthProvider = "youauth"
@@ -89,21 +86,6 @@ func refreshToken(accessToken string) (string, error) {
 	return token.AccessToken, nil
 }
 
-func GetUserByYouAuthToken(accessToken string) (*database.User, error) {
-	var oauthRecord database.Oauth
-	err := database.Instance.Model(&database.Oauth{}).Preload("User").Where("access_token = ?", accessToken).
-		Where("provider = ?", YouAuthProvider).
-		Find(&oauthRecord).Error
-	if err != nil {
-		return nil, err
-	}
-	_, err = plugins.DefaultYouAuthOauthPlugin.Client.GetCurrentUser(accessToken)
-	if err != nil {
-		return nil, err
-	}
-	return oauthRecord.User, nil
-}
-
 func YouPlusLogin(username string, rawPassword string) (*database.User, string, error) {
 	authResult, err := plugins.DefaultYouPlusPlugin.Client.FetchUserAuth(username, rawPassword)
 	if err != nil {
@@ -146,79 +128,4 @@ func YouPlusLogin(username string, rawPassword string) (*database.User, string, 
 		return nil, "", err
 	}
 	return user, authResult.Token, nil
-}
-
-type JwtClaims interface {
-	GetUserId() uint
-}
-type UserClaims struct {
-	jwt.StandardClaims
-	UserId uint `json:"user_id"`
-}
-type YouAuthClaims struct {
-	UserId uint `json:"user_id"`
-}
-
-func (c *YouAuthClaims) GetUserId() uint {
-	return c.UserId
-}
-
-func (c *UserClaims) GetUserId() uint {
-	return c.UserId
-}
-
-func ParseAuthHeader(c *haruka.Context) (JwtClaims, error) {
-	jwtToken := c.Request.Header.Get("Authorization")
-	if len(jwtToken) == 0 {
-		jwtToken = c.GetQueryString("a")
-	}
-	if len(jwtToken) == 0 {
-		jwtToken = c.GetQueryString("token")
-	}
-	if len(jwtToken) == 0 {
-		return nil, errors.New("jwt token error")
-	}
-	jwtToken = strings.TrimPrefix(jwtToken, "Bearer ")
-	return ParseToken(jwtToken)
-}
-func ParseToken(jwtToken string) (JwtClaims, error) {
-	token, _, err := new(jwt.Parser).ParseUnverified(jwtToken, jwt.MapClaims{})
-	if err != nil {
-		return nil, err
-	}
-	mapClaims := token.Claims.(jwt.MapClaims)
-	isu := mapClaims["iss"].(string)
-	switch isu {
-	case "youauth":
-		user, err := GetUserByYouAuthToken(jwtToken)
-		if err != nil {
-			return nil, err
-		}
-		return &YouAuthClaims{
-			UserId: user.ID,
-		}, nil
-	case "YouPlusService":
-		user, err := GetUserByYouPlusToken(jwtToken)
-		if err != nil {
-			return nil, err
-		}
-		return &UserClaims{
-			UserId: user.ID,
-		}, nil
-	}
-	return nil, errors.New("jwt token error")
-}
-func GetUserByYouPlusToken(accessToken string) (*database.User, error) {
-	var oauthRecord database.Oauth
-	err := database.Instance.Model(&database.Oauth{}).Preload("User").Where("access_token = ?", accessToken).
-		Where("provider = ?", "YouPlusServer").
-		Find(&oauthRecord).Error
-	if err != nil {
-		return nil, err
-	}
-	_, err = plugins.DefaultYouPlusPlugin.Client.CheckAuth(accessToken)
-	if err != nil {
-		return nil, err
-	}
-	return oauthRecord.User, nil
 }
