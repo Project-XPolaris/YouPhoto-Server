@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"errors"
 	"github.com/allentom/haruka"
 	"github.com/project-xpolaris/youplustoolkit/youlink"
 	"github.com/projectxpolaris/youphoto/database"
@@ -61,7 +62,18 @@ var youPlusTokenHandler haruka.RequestHandler = func(context *haruka.Context) {
 	//	AbortError(context, err, http.StatusBadRequest)
 	//	return
 	//}
-	context.JSON(haruka.JSON{
-		"success": true,
-	})
+	if claims, ok := context.Param["claim"]; ok {
+		user := claims.(*database.User)
+		context.JSON(haruka.JSON{
+			"data": haruka.JSON{
+				"username": user.Username,
+				"id":       user.ID,
+			},
+			"success": true,
+		})
+	} else {
+		AbortError(context, errors.New("need auth"), http.StatusBadRequest)
+		return
+	}
+
 }

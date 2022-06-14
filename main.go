@@ -51,6 +51,7 @@ func main() {
 	module.CreateAuthModule()
 	module.Auth.AuthMiddleware.OnError = func(ctx *haruka.Context, err error) {
 		httpapi.AbortError(ctx, err, http.StatusForbidden)
+		ctx.Abort()
 	}
 	appEngine.HttpService = httpapi.GetEngine()
 	if err != nil {

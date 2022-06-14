@@ -14,7 +14,6 @@ func CreateYouAuthPlugin() {
 	DefaultYouAuthOauthPlugin.AuthFromToken = func(token string) (commons.AuthUser, error) {
 		return GetUserByYouAuthToken(token)
 	}
-	DefaultYouPlusPlugin.AuthUrl = "/oauth/youauth"
 	module.Auth.Plugins = append(module.Auth.Plugins, DefaultYouAuthOauthPlugin)
 }
 func GetUserByYouAuthToken(accessToken string) (*database.User, error) {
