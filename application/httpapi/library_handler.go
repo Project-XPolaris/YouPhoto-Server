@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/allentom/haruka"
 	"github.com/projectxpolaris/youphoto/database"
+	"github.com/projectxpolaris/youphoto/module"
 	"github.com/projectxpolaris/youphoto/service"
 	"net/http"
 )
@@ -72,12 +73,18 @@ var scanLibraryHandler haruka.RequestHandler = func(context *haruka.Context) {
 	option := service.CreateScanTaskOption{
 		LibraryId: uint(id),
 	}
-	_, err = service.CreateSyncLibraryTask(option)
+	task, err := service.CreateSyncLibraryTask(option)
 	if err != nil {
 		AbortError(context, err, http.StatusBadRequest)
 		return
 	}
-	MakeSuccessResponse(nil, context)
+	go task.Start()
+	data, err := module.Task.SerializerTemplate(task)
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	MakeSuccessResponse(data, context)
 }
 
 var removeLibraryHandler haruka.RequestHandler = func(context *haruka.Context) {
@@ -89,10 +96,16 @@ var removeLibraryHandler haruka.RequestHandler = func(context *haruka.Context) {
 	option := service.RemoveLibraryTaskOption{
 		LibraryId: uint(id),
 	}
-	_, err = service.CreateRemoveLibraryTask(option)
+	task, err := service.CreateRemoveLibraryTask(option)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return
 	}
-	MakeSuccessResponse(nil, context)
+	go task.Start()
+	data, err := module.Task.SerializerTemplate(task)
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	MakeSuccessResponse(data, context)
 }

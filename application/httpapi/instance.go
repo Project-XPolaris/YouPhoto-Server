@@ -6,6 +6,7 @@ import (
 	"github.com/projectxpolaris/youphoto/module"
 	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
+	"net/http"
 )
 
 var Logger = log.New().WithFields(log.Fields{
@@ -16,6 +17,23 @@ func GetEngine() *haruka.Engine {
 	e := haruka.NewEngine()
 	e.UseCors(cors.AllowAll())
 	e.UseMiddleware(module.Auth.AuthMiddleware)
+	module.Auth.AuthMiddleware.OnError = func(ctx *haruka.Context, err error) {
+		AbortError(ctx, err, http.StatusForbidden)
+		ctx.Abort()
+	}
+	module.Auth.AuthMiddleware.RequestFilter = func(c *haruka.Context) bool {
+		NoAuthPath := []string{
+			"/oauth/youauth",
+			"/oauth/youplus",
+			"/info",
+		}
+		for _, path := range NoAuthPath {
+			if c.Request.URL.Path == path {
+				return false
+			}
+		}
+		return true
+	}
 	e.UseMiddleware(middleware.NewPaginationMiddleware("page", "pageSize", 1, 20))
 	e.Router.GET("/libraries", getLibraryListHandler)
 	e.Router.POST("/libraries", createLibraryHandler)
@@ -31,5 +49,7 @@ func GetEngine() *haruka.Engine {
 	e.Router.GET("/oauth/youauth", generateAccessCodeWithYouAuthHandler)
 	e.Router.POST("/oauth/youplus", YouPlusLoginHandler)
 	e.Router.GET("/user/auth", youPlusTokenHandler)
+	module.Task.AddConverter(NewScanLibraryDetail)
+	module.Task.AddConverter(NewRemoveLibraryDetail)
 	return e
 }

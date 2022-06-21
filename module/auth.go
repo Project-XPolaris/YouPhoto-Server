@@ -12,10 +12,5 @@ var Auth = &auth.AuthModule{
 
 func CreateAuthModule() {
 	Auth.ConfigProvider = config.DefaultConfigProvider
-	Auth.NoAuthPath = []string{
-		"/oauth/youauth",
-		"/oauth/youplus",
-		"/info",
-	}
 	Auth.InitModule()
 }

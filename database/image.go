@@ -17,4 +17,6 @@ type Image struct {
 	Height     uint
 	Md5        string
 	Library    *Library
+	Domain     string
+	BlurHash   string
 }

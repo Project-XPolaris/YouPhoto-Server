@@ -5,6 +5,7 @@ import (
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/utils"
 	"gorm.io/gorm"
+
 	"os"
 	"path/filepath"
 	"time"
@@ -54,6 +55,16 @@ func CreateImage(path string, libraryId uint, fullPath string) (*database.Image,
 		image.LastModify = fileStat.ModTime()
 		image.Size = uint(fileStat.Size())
 	}
+	// read dominant color
+	domainColor, _ := utils.GetMostDomainColor(fullPath)
+	if len(domainColor) > 0 {
+		image.Domain = domainColor
+	}
+
+	blurHash, _ := utils.GetBlurHash(utils.GetThumbnailsPath(image.Thumbnail))
+	if len(blurHash) > 0 {
+		image.BlurHash = blurHash
+	}
 	err = database.Instance.Save(&image).Error
 	if err != nil {
 		return nil, err
@@ -67,6 +78,10 @@ type ImagesQueryBuilder struct {
 	LibraryId []string `hsource:"query" hname:"libraryId"`
 	Orders    []string `hsource:"query" hname:"order"`
 	Random    string   `hsource:"query" hname:"random"`
+	MinWidth  int      `hsource:"query" hname:"minWidth"`
+	MinHeight int      `hsource:"query" hname:"minHeight"`
+	MaxWidth  int      `hsource:"query" hname:"maxWidth"`
+	MaxHeight int      `hsource:"query" hname:"maxHeight"`
 	UserId    uint
 }
 
@@ -87,6 +102,18 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 		query = query.Where("images.library_id IN ? and (l.public = ? or lu.user_id = ?)", q.LibraryId, true, q.UserId)
 	} else {
 		query = query.Where("l.public = ? or lu.user_id = ?", true, q.UserId)
+	}
+	if q.MinWidth > 0 {
+		query = query.Where("images.width >= ?", q.MinWidth)
+	}
+	if q.MinHeight > 0 {
+		query = query.Where("images.height >= ?", q.MinHeight)
+	}
+	if q.MaxWidth > 0 {
+		query = query.Where("images.width <= ?", q.MaxWidth)
+	}
+	if q.MaxHeight > 0 {
+		query = query.Where("images.height <= ?", q.MaxHeight)
 	}
 	if len(q.Random) > 0 {
 		if database.Instance.Dialector.Name() == "sqlite" {

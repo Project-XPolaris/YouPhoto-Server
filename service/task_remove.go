@@ -1,8 +1,11 @@
 package service
 
 import (
+	"github.com/allentom/harukap/module/task"
 	"github.com/project-xpolaris/youplustoolkit/youlog"
 	"github.com/projectxpolaris/youphoto/database"
+	"github.com/projectxpolaris/youphoto/module"
+	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/utils"
 	"os"
 )
@@ -17,24 +20,38 @@ type RemoveLibraryTaskOutput struct {
 
 type RemoveLibraryTaskOption struct {
 	LibraryId  uint
-	OnError    func(task Task, err error)
-	OnComplete func(task Task)
+	OnError    func(task *RemoveLibraryTask, err error)
+	OnComplete func(task *RemoveLibraryTask)
 }
 
 type RemoveLibraryTask struct {
-	BaseTask
+	*task.BaseTask
 	option RemoveLibraryTaskOption
 	output *RemoveLibraryTaskOutput
+	Logger *youlog.Scope
+}
+
+func (t *RemoveLibraryTask) Stop() error {
+	return nil
+}
+
+func (t *RemoveLibraryTask) Start() error {
+	return nil
+}
+
+func (t *RemoveLibraryTask) Output() (interface{}, error) {
+	return t.output, nil
 }
 
 func (t *RemoveLibraryTask) Done() {
-	t.UpdateDoneStatus()
+	t.Status = TaskStatusDone
 	if t.option.OnComplete != nil {
 		t.option.OnComplete(t)
 	}
 }
 func (t *RemoveLibraryTask) AbortError(err error) {
-	t.BaseTask.AbortError(err)
+	t.Status = TaskStatusError
+	t.Err = err
 	if t.option.OnError != nil {
 		t.option.OnError(t, err)
 	}
@@ -44,18 +61,18 @@ func (t *RemoveLibraryTask) GetOutput() interface{} {
 	return t.output
 }
 
-func CreateRemoveLibraryTask(option RemoveLibraryTaskOption) (Task, error) {
-	for _, task := range DefaultTaskPool.Tasks {
-		if removeOutput, ok := task.GetOutput().(*RemoveLibraryTaskOutput); ok && removeOutput.Id == option.LibraryId {
+func CreateRemoveLibraryTask(option RemoveLibraryTaskOption) (*RemoveLibraryTask, error) {
+	for _, task := range module.Task.Pool.Tasks {
+		if removeOutput, ok := task.(*RemoveLibraryTask); ok && removeOutput.output.Id == option.LibraryId {
 			if task.GetStatus() == TaskStatusRunning {
-				return task, nil
+				return removeOutput, nil
 			}
-			DefaultTaskPool.RemoveTaskById(task.GetId())
+			module.Task.Pool.RemoveTaskById(task.GetId())
 			break
 		}
 	}
 	task := RemoveLibraryTask{
-		BaseTask: NewBaseTask(TaskTypeRemove),
+		BaseTask: task.NewBaseTask(TaskTypeRemove, "-1", TaskStatusRunning),
 		option:   option,
 	}
 	var library database.Library
@@ -70,7 +87,7 @@ func CreateRemoveLibraryTask(option RemoveLibraryTaskOption) (Task, error) {
 	}
 	task.output = &output
 
-	task.BaseTask.Logger = task.BaseTask.Logger.WithFields(youlog.Fields{
+	task.Logger = plugins.DefaultYouLogPlugin.Logger.NewScope("Task").WithFields(youlog.Fields{
 		"path":      library.Path,
 		"libraryId": library.ID,
 	})
@@ -97,6 +114,6 @@ func CreateRemoveLibraryTask(option RemoveLibraryTaskOption) (Task, error) {
 		task.Status = TaskStatusDone
 		task.Done()
 	}()
-	DefaultTaskPool.AddTask(&task)
+	module.Task.Pool.AddTask(&task)
 	return &task, nil
 }

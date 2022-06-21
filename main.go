@@ -53,6 +53,7 @@ func main() {
 		httpapi.AbortError(ctx, err, http.StatusForbidden)
 		ctx.Abort()
 	}
+	module.CreateTaskModule()
 	appEngine.HttpService = httpapi.GetEngine()
 	if err != nil {
 		logrus.Fatal(err)
