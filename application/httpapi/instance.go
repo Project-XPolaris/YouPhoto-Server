@@ -16,7 +16,6 @@ var Logger = log.New().WithFields(log.Fields{
 func GetEngine() *haruka.Engine {
 	e := haruka.NewEngine()
 	e.UseCors(cors.AllowAll())
-	e.UseMiddleware(module.Auth.AuthMiddleware)
 	module.Auth.AuthMiddleware.OnError = func(ctx *haruka.Context, err error) {
 		AbortError(ctx, err, http.StatusForbidden)
 		ctx.Abort()
@@ -34,6 +33,8 @@ func GetEngine() *haruka.Engine {
 		}
 		return true
 	}
+	e.UseMiddleware(module.Auth.AuthMiddleware)
+
 	e.UseMiddleware(middleware.NewPaginationMiddleware("page", "pageSize", 1, 20))
 	e.Router.GET("/libraries", getLibraryListHandler)
 	e.Router.POST("/libraries", createLibraryHandler)

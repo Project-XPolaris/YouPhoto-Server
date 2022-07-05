@@ -1,11 +1,17 @@
 package httpapi
 
 import (
+	"bytes"
+	context2 "context"
 	"github.com/allentom/haruka"
 	"github.com/projectxpolaris/youphoto/config"
+	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/service"
+	"github.com/projectxpolaris/youphoto/utils"
+	"io/ioutil"
 	"net/http"
 	"path/filepath"
+	"time"
 )
 
 var getImageListHandler haruka.RequestHandler = func(context *haruka.Context) {
@@ -38,7 +44,16 @@ var getImageThumbnailHandler haruka.RequestHandler = func(context *haruka.Contex
 		AbortError(context, err, http.StatusInternalServerError)
 		return
 	}
-	http.ServeFile(context.Writer, context.Request, filepath.Join(config.Instance.ThumbnailStorePath, image.Thumbnail))
+	storageKey := filepath.Join(config.Instance.ThumbnailStorePath, image.Thumbnail)
+	storage := plugins.GetDefaultStorage()
+	buf, err := storage.Get(context2.Background(), utils.DefaultBucket, storageKey)
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	data, _ := ioutil.ReadAll(buf)
+	http.ServeContent(context.Writer, context.Request, image.Thumbnail, time.Now(), bytes.NewReader(data))
+	//http.ServeFile(context.Writer, context.Request, filepath.Join(config.Instance.ThumbnailStorePath, image.Thumbnail))
 }
 
 var getImageRawHandler haruka.RequestHandler = func(context *haruka.Context) {

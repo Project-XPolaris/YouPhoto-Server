@@ -48,8 +48,20 @@ auth:
     url: "http://localhost:8602"
     appid: "appid"
     secret: "secret"
-
   youplus:
     type: youplus
     enable: true
+  anonymous:
+    type: anonymous
+    enable: true
+storage:
+  default: remote
+  remote:
+    type: s3
+    endpoint: "http://localhost:9000"
+    bucket: "youphoto"
+    id: "root"
+    secret: "password"
+    region: "us-east-1"
+
 

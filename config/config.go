@@ -73,6 +73,4 @@ func ReadConfig(provider *config.Provider) {
 			Instance.EnableAnonymous = configer.GetBool(fmt.Sprintf("auth.%s.enable", key))
 		}
 	}
-	fmt.Println(Instance)
-
 }

@@ -1,7 +1,7 @@
 package database
 
 import (
-	"github.com/allentom/harukap/datasource"
+	"github.com/allentom/harukap/plugins/datasource"
 	"gorm.io/gorm"
 )
 

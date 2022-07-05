@@ -1,13 +1,13 @@
 package service
 
 import (
+	"context"
 	"github.com/allentom/harukap/module/task"
 	"github.com/project-xpolaris/youplustoolkit/youlog"
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/module"
 	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/utils"
-	"os"
 )
 
 type RemoveLibraryTaskOutput struct {
@@ -104,7 +104,7 @@ func CreateRemoveLibraryTask(option RemoveLibraryTaskOption) (*RemoveLibraryTask
 		}
 		for _, image := range library.Images {
 			output.Current++
-			os.Remove(utils.GetThumbnailsPath(image.Thumbnail))
+			plugins.GetDefaultStorage().Delete(context.Background(), utils.DefaultBucket, utils.GetThumbnailsPath(image.Thumbnail))
 		}
 		err = database.Instance.Unscoped().Model(&database.Library{}).Where("id = ?", library.ID).Delete(library).Error
 		if err != nil {

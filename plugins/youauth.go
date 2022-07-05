@@ -2,7 +2,7 @@ package plugins
 
 import (
 	"github.com/allentom/harukap/commons"
-	"github.com/allentom/harukap/youauth"
+	"github.com/allentom/harukap/plugins/youauth"
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/module"
 )
