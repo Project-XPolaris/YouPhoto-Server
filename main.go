@@ -9,10 +9,8 @@ import (
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/module"
 	"github.com/projectxpolaris/youphoto/plugins"
-	"github.com/projectxpolaris/youphoto/utils"
 	"github.com/sirupsen/logrus"
 	"net/http"
-	"os"
 )
 
 func main() {
@@ -24,16 +22,7 @@ func main() {
 	if err != nil {
 		logrus.Fatal(err)
 	}
-	bootLogger := plugins.DefaultYouLogPlugin.Logger.NewScope("boot")
-	bootLogger.Info("init thumbnail path")
-	isThumbnailsStoreExist := utils.CheckFileExist(config.Instance.ThumbnailStorePath)
-	if !isThumbnailsStoreExist {
-		bootLogger.Info("thumbnail folder not exist, create it")
-		err = os.Mkdir(config.Instance.ThumbnailStorePath, os.ModePerm)
-		if err != nil {
-			logrus.Fatal(err)
-		}
-	}
+	//bootLogger := plugins.DefaultYouLogPlugin.Logger.NewScope("boot")
 	appEngine := harukap.NewHarukaAppEngine()
 	appEngine.ConfigProvider = config.DefaultConfigProvider
 	appEngine.LoggerPlugin = plugins.DefaultYouLogPlugin

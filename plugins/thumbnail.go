@@ -4,4 +4,4 @@ import (
 	"github.com/allentom/harukap/plugins/thumbnail"
 )
 
-var DefaultThumbnailServicePlugin = &thumbnail.ThumbnailServicePlugin{}
+var DefaultThumbnailServicePlugin = thumbnail.NewEngine()

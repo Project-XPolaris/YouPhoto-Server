@@ -27,14 +27,13 @@ func GetEngine() *haruka.Engine {
 			"/info",
 		}
 		for _, path := range NoAuthPath {
-			if c.Request.URL.Path == path {
+			if c.Pattern == path {
 				return false
 			}
 		}
 		return true
 	}
 	e.UseMiddleware(module.Auth.AuthMiddleware)
-
 	e.UseMiddleware(middleware.NewPaginationMiddleware("page", "pageSize", 1, 20))
 	e.Router.GET("/libraries", getLibraryListHandler)
 	e.Router.POST("/libraries", createLibraryHandler)

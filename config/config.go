@@ -30,8 +30,6 @@ type AuthConfig struct {
 }
 type Config struct {
 	ThumbnailStorePath  string
-	ThumbnailServiceUrl string
-	ThumbnailProvider   string
 	EnableAuth          bool
 	YouPlusUrl          string
 	Datasource          string
@@ -48,13 +46,11 @@ func ReadConfig(provider *config.Provider) {
 	configer.SetDefault("application", "YouPhoto Service")
 	configer.SetDefault("instance", "main")
 	Instance = Config{
-		ThumbnailStorePath:  configer.GetString("thumbnails.store_path"),
-		ThumbnailServiceUrl: configer.GetString("thumbnails.service_url"),
-		ThumbnailProvider:   configer.GetString("thumbnails.provider"),
-		EnableAuth:          configer.GetBool("youplus.auth"),
-		Datasource:          configer.GetString("datasource"),
-		YouPlusPathEnable:   configer.GetBool("youplus.enablepath"),
-		Auths:               make([]*AuthConfig, 0),
+		ThumbnailStorePath: configer.GetString("thumbnails.store_path"),
+		EnableAuth:         configer.GetBool("youplus.auth"),
+		Datasource:         configer.GetString("datasource"),
+		YouPlusPathEnable:  configer.GetBool("youplus.enablepath"),
+		Auths:              make([]*AuthConfig, 0),
 	}
 	// read auth config
 	rawAuth := configer.GetStringMap("auth")
