@@ -1,4 +1,4 @@
-ARG GOLANG_VERSION=1.17
+ARG GOLANG_VERSION=1.18
 FROM golang:${GOLANG_VERSION}-buster as builder
 ARG GOPROXY=https://goproxy.cn
 RUN sed -i 's/ports.ubuntu.com/mirror.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
@@ -6,10 +6,10 @@ WORKDIR ${GOPATH}/src/github.com/projectxpolaris/youphoto
 
 COPY go.mod .
 COPY go.sum .
-
+COPY . .
 RUN go mod download
 
-COPY . .
+
 
 RUN go build -o ${GOPATH}/bin/youphoto ./main.go
 
