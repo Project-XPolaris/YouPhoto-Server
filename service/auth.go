@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"github.com/allentom/harukap/plugins/youauth"
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/rs/xid"
@@ -16,6 +17,16 @@ func GenerateYouAuthToken(code string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
+	return LinkWithYouAuthToken(tokens)
+}
+func GenerateYouAuthTokenByPassword(username string, rawPassword string) (string, string, error) {
+	authResult, err := plugins.DefaultYouAuthOauthPlugin.Client.GrantWithPassword(username, rawPassword)
+	if err != nil {
+		return "", "", err
+	}
+	return LinkWithYouAuthToken(authResult)
+}
+func LinkWithYouAuthToken(tokens *youauth.GenerateTokenResponse) (string, string, error) {
 	currentUserResponse, err := plugins.DefaultYouAuthOauthPlugin.Client.GetCurrentUser(tokens.AccessToken)
 	if err != nil {
 		return "", "", err
@@ -59,7 +70,6 @@ func GenerateYouAuthToken(code string) (string, string, error) {
 	}
 	return tokens.AccessToken, currentUserResponse.Username, nil
 }
-
 func refreshToken(accessToken string) (string, error) {
 	tokenRecord := database.Oauth{}
 	err := database.Instance.Where("access_token = ?", accessToken).First(&tokenRecord).Error
@@ -106,6 +116,7 @@ func YouPlusLogin(username string, rawPassword string) (*database.User, string, 
 		// create new user
 		uid := xid.New().String()
 		user = &database.User{
+			Uid:      uid,
 			Username: uid,
 		}
 		err = database.Instance.Create(&user).Error

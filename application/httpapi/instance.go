@@ -47,6 +47,7 @@ func GetEngine() *haruka.Engine {
 	e.Router.GET("/readdir", readDirectoryHandler)
 	e.Router.GET("/tasks", taskListHandler)
 	e.Router.GET("/oauth/youauth", generateAccessCodeWithYouAuthHandler)
+	e.Router.GET("/oauth/youauth/password", generateAccessCodeWithYouAuthPasswordHandler)
 	e.Router.POST("/oauth/youplus", YouPlusLoginHandler)
 	e.Router.GET("/user/auth", youPlusTokenHandler)
 	module.Task.AddConverter(NewScanLibraryDetail)
