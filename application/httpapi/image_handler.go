@@ -53,7 +53,6 @@ var getImageThumbnailHandler haruka.RequestHandler = func(context *haruka.Contex
 	}
 	data, _ := ioutil.ReadAll(buf)
 	http.ServeContent(context.Writer, context.Request, image.Thumbnail, time.Now(), bytes.NewReader(data))
-	//http.ServeFile(context.Writer, context.Request, filepath.Join(config.Instance.ThumbnailStorePath, image.Thumbnail))
 }
 
 var getImageRawHandler haruka.RequestHandler = func(context *haruka.Context) {
