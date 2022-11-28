@@ -54,7 +54,18 @@ var getImageThumbnailHandler haruka.RequestHandler = func(context *haruka.Contex
 	data, _ := ioutil.ReadAll(buf)
 	http.ServeContent(context.Writer, context.Request, image.Thumbnail, time.Now(), bytes.NewReader(data))
 }
-
+var getThumbnailHandler haruka.RequestHandler = func(context *haruka.Context) {
+	id := context.GetPathParameterAsString("id")
+	storageKey := filepath.Join(config.Instance.ThumbnailStorePath, id)
+	storage := plugins.GetDefaultStorage()
+	buf, err := storage.Get(context2.Background(), utils.DefaultBucket, storageKey)
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	data, _ := ioutil.ReadAll(buf)
+	http.ServeContent(context.Writer, context.Request, id, time.Now(), bytes.NewReader(data))
+}
 var getImageRawHandler haruka.RequestHandler = func(context *haruka.Context) {
 	id, err := context.GetPathParameterAsInt("id")
 	if err != nil {
