@@ -1,16 +1,22 @@
 package utils
 
 import (
-	"fmt"
+	"context"
 	"github.com/EdlinOrg/prominentcolor"
 	"github.com/bbrks/go-blurhash"
+	"github.com/projectxpolaris/youphoto/plugins"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io"
 	"os"
 )
 
+func loadImage(reader io.ReadCloser) (image.Image, error) {
+	image, _, err := image.Decode(reader)
+	return image, err
+}
 func GetImageDimension(imagePath string) (int, int, error) {
 	file, err := os.Open(imagePath)
 	if err != nil {
@@ -24,37 +30,25 @@ func GetImageDimension(imagePath string) (int, int, error) {
 	return config.Width, config.Height, nil
 }
 
-func GetMostDomainColor(imagePath string) (string, error) {
-	f, err := os.Open(imagePath)
+func GetMostDomainColorFromImage(inputImage image.Image) ([]prominentcolor.ColorItem, error) {
+	colorItems, err := prominentcolor.Kmeans(inputImage)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	defer f.Close()
-	imageInput, _, err := image.Decode(f)
-	if err != nil {
-		return "", err
-	}
-	colorItems, err := prominentcolor.Kmeans(imageInput)
-	if err != nil {
-		return "", err
-	}
-	if len(colorItems) > 0 {
-		return fmt.Sprintf("#%02x%02x%02x", colorItems[0].Color.R, colorItems[0].Color.G, colorItems[0].Color.B), nil
-	}
-	return "", nil
+	return colorItems, nil
 }
 
-func GetBlurHash(imagePath string) (string, error) {
-	f, err := os.Open(imagePath)
+func GetBlurHash(thumbnailPath string) (string, error) {
+	thumbnailStore := plugins.GetDefaultStorage()
+	thumbnailSource, err := thumbnailStore.Get(context.Background(), DefaultBucket, thumbnailPath)
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
-	imageInput, _, err := image.Decode(f)
+	thumbnailImage, err := loadImage(thumbnailSource)
 	if err != nil {
 		return "", err
 	}
-	str, _ := blurhash.Encode(4, 3, imageInput)
+	str, err := blurhash.Encode(4, 3, thumbnailImage)
 	if err != nil {
 		return "", err
 	}

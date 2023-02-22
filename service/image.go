@@ -5,6 +5,8 @@ import (
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/utils"
 	"gorm.io/gorm"
+	"sort"
+	"strings"
 
 	"os"
 	"path/filepath"
@@ -55,34 +57,74 @@ func CreateImage(path string, libraryId uint, fullPath string) (*database.Image,
 		image.LastModify = fileStat.ModTime()
 		image.Size = uint(fileStat.Size())
 	}
-	// read dominant color
-	domainColor, _ := utils.GetMostDomainColor(fullPath)
-	if len(domainColor) > 0 {
-		image.Domain = domainColor
+	source, err := getImageFromFilePath(fullPath)
+	if err != nil {
+		return nil, err
 	}
 
-	blurHash, _ := utils.GetBlurHash(utils.GetThumbnailsPath(image.Thumbnail))
+	// read dominant color
+	domainColors, _ := utils.GetMostDomainColorFromImage(source)
+	if len(domainColors) > 0 {
+		sort.Slice(domainColors, func(i, j int) bool {
+			return domainColors[i].Cnt > domainColors[j].Cnt
+		})
+		image.Domain = fmt.Sprintf("#%02x%02x%02x", domainColors[0].Color.R, domainColors[0].Color.G, domainColors[0].Color.B)
+	}
+	imageHash, _ := getImageHashFromImage(source)
+	if imageHash != nil {
+		image.AvgHash = fmt.Sprintf("%d", imageHash.AvgHash)
+		image.DifHash = fmt.Sprintf("%d", imageHash.DifHash)
+		image.PerHash = fmt.Sprintf("%d", imageHash.PerHash)
+	}
+
+	blurHash, _ := utils.GetBlurHash(image.Thumbnail)
 	if len(blurHash) > 0 {
 		image.BlurHash = blurHash
 	}
+
 	err = database.Instance.Save(&image).Error
 	if err != nil {
 		return nil, err
+	}
+	if domainColors != nil && len(domainColors) > 0 {
+		colorToInsert := make([]database.ImageColor, 0)
+		totalCnt := 0
+		for _, color := range domainColors {
+			totalCnt += color.Cnt
+		}
+		for idx, color := range domainColors {
+			colorToInsert = append(colorToInsert, database.ImageColor{
+				ImageId: image.ID,
+				Value:   fmt.Sprintf("#%02x%02x%02x", color.Color.R, color.Color.G, color.Color.B),
+				Cnt:     color.Cnt,
+				Rank:    idx,
+				Percent: float64(color.Cnt) / float64(totalCnt),
+				R:       int(color.Color.R),
+				G:       int(color.Color.G),
+				B:       int(color.Color.B),
+			})
+		}
+		database.Instance.Unscoped().Where("image_id = ?", image.ID).Delete(&database.ImageColor{ImageId: image.ID})
+		database.Instance.Save(&colorToInsert)
 	}
 	return &image, err
 }
 
 type ImagesQueryBuilder struct {
-	Page      int
-	PageSize  int
-	LibraryId []string `hsource:"query" hname:"libraryId"`
-	Orders    []string `hsource:"query" hname:"order"`
-	Random    string   `hsource:"query" hname:"random"`
-	MinWidth  int      `hsource:"query" hname:"minWidth"`
-	MinHeight int      `hsource:"query" hname:"minHeight"`
-	MaxWidth  int      `hsource:"query" hname:"maxWidth"`
-	MaxHeight int      `hsource:"query" hname:"maxHeight"`
-	UserId    uint
+	Page        int
+	PageSize    int
+	LibraryId   []string `hsource:"query" hname:"libraryId"`
+	Orders      []string `hsource:"query" hname:"order"`
+	Random      string   `hsource:"query" hname:"random"`
+	MinWidth    int      `hsource:"query" hname:"minWidth"`
+	MinHeight   int      `hsource:"query" hname:"minHeight"`
+	MaxWidth    int      `hsource:"query" hname:"maxWidth"`
+	MaxHeight   int      `hsource:"query" hname:"maxHeight"`
+	UserId      uint
+	ColorRank1  string `hsource:"query" hname:"colorRank1"`
+	ColorRank2  string `hsource:"query" hname:"colorRank2"`
+	ColorRank3  string `hsource:"query" hname:"colorRank3"`
+	MaxDistance int    `hsource:"query" hname:"maxDistance"`
 }
 
 func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
@@ -115,6 +157,58 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 	if q.MaxHeight > 0 {
 		query = query.Where("images.height <= ?", q.MaxHeight)
 	}
+	colorTablesQueryStringParts := make([]string, 0)
+	colorSubQueryTable := make([]interface{}, 0)
+	colorQueryTableNames := make([]string, 0)
+	if len(q.ColorRank1) > 0 {
+		r, g, b := utils.HexToRGB(q.ColorRank1)
+		colorTablesQueryStringParts = append(colorTablesQueryStringParts, "(?) as rank1")
+		colorSubQueryTable = append(colorSubQueryTable, database.Instance.
+			Table("image_colors").
+			Select("sqrt(pow(image_colors.r - ?, 2) +pow(image_colors.g - ?, 2) +pow(image_colors.b - ?, 2)) as distance,image_id", r, g, b).
+			Where("image_colors.rank = 0"))
+		colorQueryTableNames = append(colorQueryTableNames, "rank1")
+	}
+
+	if len(q.ColorRank2) > 0 {
+		colorTablesQueryStringParts = append(colorTablesQueryStringParts, "(?) as rank2")
+		r, g, b := utils.HexToRGB(q.ColorRank2)
+		colorSubQueryTable = append(colorSubQueryTable, database.Instance.
+			Table("image_colors").
+			Select("sqrt(pow(image_colors.r - ?, 2) +pow(image_colors.g - ?, 2) +pow(image_colors.b - ?, 2)) as distance,image_id", r, g, b).
+			Where("image_colors.rank = 1"))
+		colorQueryTableNames = append(colorQueryTableNames, "rank2")
+	}
+	if len(q.ColorRank3) > 0 {
+		colorTablesQueryStringParts = append(colorTablesQueryStringParts, "(?) as rank3")
+		r, g, b := utils.HexToRGB(q.ColorRank3)
+		colorSubQueryTable = append(colorSubQueryTable, database.Instance.
+			Table("image_colors").
+			Select("sqrt(pow(image_colors.r - ?, 2) +pow(image_colors.g - ?, 2) +pow(image_colors.b - ?, 2)) as distance,image_id", r, g, b).
+			Where("image_colors.rank = 2"))
+	}
+	if len(colorTablesQueryStringParts) > 0 {
+		selectAdd := make([]string, 0)
+		for i := 0; i < len(colorQueryTableNames); i++ {
+			selectAdd = append(selectAdd, fmt.Sprintf("%s.distance", colorQueryTableNames[i]))
+		}
+		totalTable := database.Instance.Table(strings.Join(colorTablesQueryStringParts, ","), colorSubQueryTable...).
+			Select(fmt.Sprintf("%s as total_distance, %s.image_id as id",
+				strings.Join(selectAdd, "+"),
+				colorQueryTableNames[0],
+			))
+		for i := 1; i < len(colorQueryTableNames); i++ {
+			totalTable = totalTable.Where(fmt.Sprintf("%s.image_id = %s.image_id", colorQueryTableNames[i], colorQueryTableNames[i-1]))
+		}
+		//Where("rank1.image_id = rank2.image_id").
+		//Where("rank2.image_id = rank3.image_id").
+		//Where("rank1.image_id = rank3.image_id")
+		query = query.Joins("INNER JOIN (?) as total_distance on total_distance.id = images.id", totalTable).
+			Where("total_distance.total_distance < ?", q.MaxDistance)
+		query = query.Order("total_distance.total_distance asc")
+		query = query.Preload("ImageColor")
+	}
+
 	if len(q.Random) > 0 {
 		if database.Instance.Dialector.Name() == "sqlite" {
 			query = query.Order("random()")

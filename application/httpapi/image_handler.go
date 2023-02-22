@@ -79,3 +79,47 @@ var getImageRawHandler haruka.RequestHandler = func(context *haruka.Context) {
 	}
 	http.ServeFile(context.Writer, context.Request, filepath.Join(image.Library.Path, image.Path))
 }
+
+var getNearImageHandler haruka.RequestHandler = func(context *haruka.Context) {
+	id, err := context.GetPathParameterAsInt("id")
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	maxDistance, err := context.GetQueryInt("maxDistance")
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	images, err := service.GetNearImage(uint(id), maxDistance)
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	data := NewNearImageTemplateList(images)
+	context.JSON(haruka.JSON{
+		"success": true,
+		"data":    data,
+	})
+
+}
+
+var getColorMatchHandler haruka.RequestHandler = func(context *haruka.Context) {
+	var option service.MatchColorOption
+	err := context.ParseJson(&option)
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	images, err := service.MatchColor(option)
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+
+	context.JSON(haruka.JSON{
+		"success": true,
+		"data":    NewColorMatchTemplateList(images),
+	})
+
+}

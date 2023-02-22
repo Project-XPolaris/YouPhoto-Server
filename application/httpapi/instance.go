@@ -41,6 +41,8 @@ func GetEngine() *haruka.Engine {
 	e.Router.DELETE("/library/{id:[0-9]+}", removeLibraryHandler)
 	e.Router.GET("/images", getImageListHandler)
 	e.Router.GET("/image/{id:[0-9]+}/thumbnail", getImageThumbnailHandler)
+	e.Router.GET("/image/{id:[0-9]+}/near", getNearImageHandler)
+	e.Router.POST("/color/match", getColorMatchHandler)
 	e.Router.GET("/thumbnail/{id}", getThumbnailHandler)
 	e.Router.GET("/image/{id:[0-9]+}/raw", getImageRawHandler)
 	e.Router.GET("/info", serviceInfoHandler)

@@ -7,6 +7,7 @@ require (
 	github.com/allentom/haruka v0.0.0-20220727070012-8da0b79e04c3
 	github.com/allentom/harukap v0.0.0-20221125073226-4c6910c9dfe6
 	github.com/bbrks/go-blurhash v1.1.1
+	github.com/corona10/goimagehash v1.1.0
 	github.com/minio/md5-simd v1.1.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/project-xpolaris/youplustoolkit v0.0.0-20220331083706-51df568cbf83
@@ -14,6 +15,7 @@ require (
 	github.com/rs/xid v1.4.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/afero v1.9.3
+	github.com/stretchr/testify v1.8.1
 	gorm.io/gorm v1.22.0
 )
 
@@ -30,6 +32,7 @@ require (
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
@@ -69,6 +72,7 @@ require (
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/processout/grpc-go-pool v1.2.1 // indirect
 	github.com/russross/blackfriday/v2 v2.0.1 // indirect
 	github.com/sagikazarmark/crypt v0.8.0 // indirect
