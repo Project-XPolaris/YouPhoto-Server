@@ -111,20 +111,22 @@ func CreateImage(path string, libraryId uint, fullPath string) (*database.Image,
 }
 
 type ImagesQueryBuilder struct {
-	Page        int
-	PageSize    int
-	LibraryId   []string `hsource:"query" hname:"libraryId"`
-	Orders      []string `hsource:"query" hname:"order"`
-	Random      string   `hsource:"query" hname:"random"`
-	MinWidth    int      `hsource:"query" hname:"minWidth"`
-	MinHeight   int      `hsource:"query" hname:"minHeight"`
-	MaxWidth    int      `hsource:"query" hname:"maxWidth"`
-	MaxHeight   int      `hsource:"query" hname:"maxHeight"`
-	UserId      uint
-	ColorRank1  string `hsource:"query" hname:"colorRank1"`
-	ColorRank2  string `hsource:"query" hname:"colorRank2"`
-	ColorRank3  string `hsource:"query" hname:"colorRank3"`
-	MaxDistance int    `hsource:"query" hname:"maxDistance"`
+	Page           int
+	PageSize       int
+	LibraryId      []string `hsource:"query" hname:"libraryId"`
+	Orders         []string `hsource:"query" hname:"order"`
+	Random         string   `hsource:"query" hname:"random"`
+	MinWidth       int      `hsource:"query" hname:"minWidth"`
+	MinHeight      int      `hsource:"query" hname:"minHeight"`
+	MaxWidth       int      `hsource:"query" hname:"maxWidth"`
+	MaxHeight      int      `hsource:"query" hname:"maxHeight"`
+	UserId         uint
+	ColorRank1     string `hsource:"query" hname:"colorRank1"`
+	ColorRank2     string `hsource:"query" hname:"colorRank2"`
+	ColorRank3     string `hsource:"query" hname:"colorRank3"`
+	NearAvgId      uint   `hsource:"query" hname:"nearAvgId"`
+	MinAvgDistance int    `hsource:"query" hname:"minAvgDistance"`
+	MaxDistance    int    `hsource:"query" hname:"maxDistance"`
 }
 
 func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
@@ -209,6 +211,25 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 		query = query.Preload("ImageColor")
 	}
 
+	if q.NearAvgId != 0 {
+		image := database.Image{}
+		err := database.Instance.Where("id = ?", q.NearAvgId).First(&image).Error
+		if err != nil {
+			return nil, 0, err
+		}
+		avgHash := image.AvgHash
+		if len(avgHash) == 0 {
+			return nil, 0, nil
+		}
+		imageHashTable := database.Instance.
+			Table("images").
+			Select("BIT_COUNT(images.avg_hash ^ ?) as distance, images.id as id", avgHash)
+		query = query.Joins("INNER JOIN (?) as image_hash_distance on image_hash_distance.id = images.id", imageHashTable).
+			Where("image_hash_distance.distance < ?", q.MinAvgDistance).
+			Order("image_hash_distance.distance asc")
+
+	}
+
 	if len(q.Random) > 0 {
 		if database.Instance.Dialector.Name() == "sqlite" {
 			query = query.Order("random()")
@@ -221,6 +242,7 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 		}
 	}
 	err := query.
+		Preload("ImageColor").
 		Offset((q.Page - 1) * q.PageSize).
 		Limit(q.PageSize).
 		Find(&images).
