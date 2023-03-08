@@ -14,10 +14,11 @@ import (
 
 type SyncLibraryTask struct {
 	*task.BaseTask
-	option  CreateScanTaskOption
-	output  *ScanTaskOutput
-	library *database.Library
-	Logger  *youlog.Scope
+	option   CreateScanTaskOption
+	output   *ScanTaskOutput
+	library  *database.Library
+	Logger   *youlog.Scope
+	stopFlag bool
 }
 
 func (t *SyncLibraryTask) Stop() error {
@@ -34,6 +35,10 @@ func (t *SyncLibraryTask) Start() error {
 		return err
 	}
 	for idx := 0; idx < int(existImageCount); idx += 20 {
+		if t.stopFlag {
+			t.Status = TaskStatusStop
+			return nil
+		}
 		var images []database.Image
 		err = database.Instance.Model(database.Image{}).
 			Where("library_id = ?", t.library.ID).
@@ -62,41 +67,58 @@ func (t *SyncLibraryTask) Start() error {
 	}
 
 	//count total
-
+	if t.stopFlag {
+		t.Status = TaskStatusStop
+		return nil
+	}
 	scanner := NewImageScanner(t.library.Path)
 	idx := 0
-	scanner.OnHit = func(path string) {
+	scanner.OnHit = func(path string) error {
 		t.output.Total += 1
+		if t.stopFlag {
+			t.Status = TaskStatusStop
+			return StopError
+		}
+		return nil
 	}
 	err = scanner.Scan()
 	if err != nil {
-		t.AbortError(err)
-		return err
+		if !errors.Is(err, StopError) {
+			t.AbortError(err)
+			return err
+		}
 	}
-	scanner.OnHit = func(path string) {
+	scanner.OnHit = func(path string) error {
+		if t.stopFlag {
+			t.Status = TaskStatusStop
+			return StopError
+		}
 		t.output.Current += int64(idx + 1)
 		t.output.CurrentPath = path
 		t.output.CurrentName = filepath.Base(path)
 		imagePath, err := filepath.Rel(t.library.Path, path)
 		if err != nil {
 			t.AbortFileError(path, err)
-			return
+			return nil
 		}
-		_, err = CreateImage(imagePath, t.library.ID, path)
+		_, err = CreateImage(imagePath, t.library.ID, path, t.option.ProcessOption)
 		if err != nil {
 			if err != nil {
 				t.AbortFileError(path, err)
-				return
+				return nil
 			}
 		} else {
 			t.OnFileComplete()
 		}
+		return nil
 	}
 	t.Logger.Info("start scan library")
 	err = scanner.Scan()
 	if err != nil {
-		t.AbortError(err)
-		return err
+		if !errors.Is(err, StopError) {
+			t.AbortError(err)
+			return err
+		}
 	}
 	t.Done()
 	return nil
@@ -122,6 +144,7 @@ type CreateScanTaskOption struct {
 	OnFileError    func(task *SyncLibraryTask, err error)
 	OnError        func(task *SyncLibraryTask, err error)
 	OnComplete     func(task *SyncLibraryTask)
+	ProcessOption  *ProcessImageOption
 }
 
 func (t *SyncLibraryTask) GetOutput() interface{} {

@@ -1,19 +1,30 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"github.com/projectxpolaris/youphoto/database"
+	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/utils"
+	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	image2 "image"
+	"os"
 	"sort"
 	"strings"
-
-	"os"
-	"path/filepath"
 	"time"
+
+	"path/filepath"
 )
 
-func CreateImage(path string, libraryId uint, fullPath string) (*database.Image, error) {
+type ProcessImageOption struct {
+	ForceRefreshDomainColor bool `json:"forceRefreshDomainColor"`
+}
+
+func CreateImage(path string, libraryId uint, fullPath string, option *ProcessImageOption) (*database.Image, error) {
+	if option == nil {
+		option = &ProcessImageOption{}
+	}
 	var image database.Image
 	// check if it exists
 	err := database.Instance.Where("library_id = ?", libraryId).Where("path = ?", path).First(&image).Error
@@ -29,10 +40,10 @@ func CreateImage(path string, libraryId uint, fullPath string) (*database.Image,
 	}
 	isUpdate := md5 != image.Md5
 	image.Md5 = md5
-
+	fmt.Println("md5: ", md5)
 	// generate thumbnail
 	if isUpdate && len(image.Thumbnail) > 0 {
-		os.Remove(utils.GetThumbnailsPath(image.Thumbnail))
+		plugins.GetDefaultStorage().Delete(context.Background(), utils.DefaultBucket, utils.GetThumbnailsPath(image.Thumbnail))
 		image.Thumbnail = ""
 	}
 	if len(image.Thumbnail) == 0 {
@@ -57,56 +68,74 @@ func CreateImage(path string, libraryId uint, fullPath string) (*database.Image,
 		image.LastModify = fileStat.ModTime()
 		image.Size = uint(fileStat.Size())
 	}
-	source, err := getImageFromFilePath(fullPath)
-	if err != nil {
-		return nil, err
+	var source image2.Image
+	// read image hash
+	if isUpdate || len(image.AvgHash) == 0 {
+		if source == nil {
+			source, err = getImageFromFilePath(fullPath)
+			if err != nil {
+				return nil, err
+			}
+		}
+		imageHash, _ := getImageHashFromImage(source)
+		if imageHash != nil {
+			image.AvgHash = fmt.Sprintf("%d", imageHash.AvgHash)
+			image.DifHash = fmt.Sprintf("%d", imageHash.DifHash)
+			image.PerHash = fmt.Sprintf("%d", imageHash.PerHash)
+		}
 	}
-
-	// read dominant color
-	domainColors, _ := utils.GetMostDomainColorFromImage(source)
-	if len(domainColors) > 0 {
-		sort.Slice(domainColors, func(i, j int) bool {
-			return domainColors[i].Cnt > domainColors[j].Cnt
-		})
-		image.Domain = fmt.Sprintf("#%02x%02x%02x", domainColors[0].Color.R, domainColors[0].Color.G, domainColors[0].Color.B)
-	}
-	imageHash, _ := getImageHashFromImage(source)
-	if imageHash != nil {
-		image.AvgHash = fmt.Sprintf("%d", imageHash.AvgHash)
-		image.DifHash = fmt.Sprintf("%d", imageHash.DifHash)
-		image.PerHash = fmt.Sprintf("%d", imageHash.PerHash)
-	}
-
-	blurHash, _ := utils.GetBlurHash(image.Thumbnail)
-	if len(blurHash) > 0 {
-		image.BlurHash = blurHash
-	}
-
+	go func() {
+		// read blur hash
+		if isUpdate || len(image.BlurHash) == 0 {
+			blurHash, _ := utils.GetBlurHash(image.Thumbnail)
+			if len(blurHash) > 0 {
+				image.BlurHash = blurHash
+			}
+		}
+		err = database.Instance.Save(&image).Error
+		if err != nil {
+			log.Error(err)
+		}
+		// read dominant color
+		if isUpdate || len(image.Domain) == 0 || option.ForceRefreshDomainColor {
+			if source == nil {
+				source, err = getImageFromFilePath(fullPath)
+				if err != nil {
+					log.Error(err)
+				}
+			}
+			domainColors, _ := utils.GetMostDomainColorFromImage(source)
+			if len(domainColors) > 0 {
+				sort.Slice(domainColors, func(i, j int) bool {
+					return domainColors[i].Cnt > domainColors[j].Cnt
+				})
+				image.Domain = fmt.Sprintf("#%02x%02x%02x", domainColors[0].Color.R, domainColors[0].Color.G, domainColors[0].Color.B)
+			}
+			if domainColors != nil && len(domainColors) > 0 {
+				colorToInsert := make([]database.ImageColor, 0)
+				totalCnt := 0
+				for _, color := range domainColors {
+					totalCnt += color.Cnt
+				}
+				for idx, color := range domainColors {
+					colorToInsert = append(colorToInsert, database.ImageColor{
+						ImageId: image.ID,
+						Value:   fmt.Sprintf("#%02x%02x%02x", color.Color.R, color.Color.G, color.Color.B),
+						Cnt:     color.Cnt,
+						Rank:    idx,
+						Percent: float64(color.Cnt) / float64(totalCnt),
+						R:       int(color.Color.R),
+						G:       int(color.Color.G),
+						B:       int(color.Color.B),
+					})
+				}
+				database.Instance.Unscoped().Where("image_id = ?", image.ID).Delete(&database.ImageColor{ImageId: image.ID})
+				database.Instance.Save(&colorToInsert)
+			}
+		}
+		err = database.Instance.Save(&image).Error
+	}()
 	err = database.Instance.Save(&image).Error
-	if err != nil {
-		return nil, err
-	}
-	if domainColors != nil && len(domainColors) > 0 {
-		colorToInsert := make([]database.ImageColor, 0)
-		totalCnt := 0
-		for _, color := range domainColors {
-			totalCnt += color.Cnt
-		}
-		for idx, color := range domainColors {
-			colorToInsert = append(colorToInsert, database.ImageColor{
-				ImageId: image.ID,
-				Value:   fmt.Sprintf("#%02x%02x%02x", color.Color.R, color.Color.G, color.Color.B),
-				Cnt:     color.Cnt,
-				Rank:    idx,
-				Percent: float64(color.Cnt) / float64(totalCnt),
-				R:       int(color.Color.R),
-				G:       int(color.Color.G),
-				B:       int(color.Color.B),
-			})
-		}
-		database.Instance.Unscoped().Where("image_id = ?", image.ID).Delete(&database.ImageColor{ImageId: image.ID})
-		database.Instance.Save(&colorToInsert)
-	}
 	return &image, err
 }
 

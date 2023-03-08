@@ -11,4 +11,5 @@ const (
 	TaskStatusRunning = "Running"
 	TaskStatusDone    = "Done"
 	TaskStatusError   = "Error"
+	TaskStatusStop    = "Stop"
 )

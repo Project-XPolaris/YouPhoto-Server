@@ -31,7 +31,7 @@ func GetImageDimension(imagePath string) (int, int, error) {
 }
 
 func GetMostDomainColorFromImage(inputImage image.Image) ([]prominentcolor.ColorItem, error) {
-	colorItems, err := prominentcolor.Kmeans(inputImage)
+	colorItems, err := prominentcolor.KmeansWithAll(9, inputImage, prominentcolor.ArgumentDefault, prominentcolor.DefaultSize, prominentcolor.GetDefaultMasks())
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func GetMostDomainColorFromImage(inputImage image.Image) ([]prominentcolor.Color
 
 func GetBlurHash(thumbnailPath string) (string, error) {
 	thumbnailStore := plugins.GetDefaultStorage()
-	thumbnailSource, err := thumbnailStore.Get(context.Background(), DefaultBucket, thumbnailPath)
+	thumbnailSource, err := thumbnailStore.Get(context.Background(), DefaultBucket, GetThumbnailsPath(thumbnailPath))
 	if err != nil {
 		return "", err
 	}

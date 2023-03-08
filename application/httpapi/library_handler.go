@@ -70,8 +70,11 @@ var scanLibraryHandler haruka.RequestHandler = func(context *haruka.Context) {
 		AbortError(context, err, http.StatusBadRequest)
 		return
 	}
+	precessOption := service.ProcessImageOption{}
+	context.ParseJson(&precessOption)
 	option := service.CreateScanTaskOption{
-		LibraryId: uint(id),
+		LibraryId:     uint(id),
+		ProcessOption: &precessOption,
 	}
 	task, err := service.CreateSyncLibraryTask(option)
 	if err != nil {

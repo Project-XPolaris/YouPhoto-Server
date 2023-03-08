@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"github.com/spf13/afero"
 	"os"
 	"strings"
@@ -9,10 +10,11 @@ import (
 var scanTargetExtensions = []string{
 	".jpg", ".png", ".jpeg", ".bmp",
 }
+var StopError = errors.New("stop")
 
 type ImageScanner struct {
 	BasePath string
-	OnHit    func(string)
+	OnHit    func(string) error
 }
 
 func NewImageScanner(basePath string) *ImageScanner {
@@ -32,7 +34,10 @@ func (s *ImageScanner) Scan() error {
 		}
 		for _, extension := range scanTargetExtensions {
 			if strings.HasSuffix(match, extension) {
-				s.OnHit(path)
+				err = s.OnHit(path)
+				if err == StopError {
+					return err
+				}
 			}
 		}
 		return nil

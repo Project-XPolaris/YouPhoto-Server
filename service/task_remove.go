@@ -97,6 +97,19 @@ func CreateRemoveLibraryTask(option RemoveLibraryTaskOption) (*RemoveLibraryTask
 			task.AbortError(err)
 			return
 		}
+		// delete colors
+		err = database.Instance.Unscoped().
+			Model(&database.ImageColor{}).
+			Where("image_colors.image_id in (?)", database.Instance.
+				Table("images").
+				Select("images.id as img_id").
+				Where("library_id = ?", library.ID),
+			).
+			Delete(&database.ImageColor{}).Error
+		if err != nil {
+			task.AbortError(err)
+			return
+		}
 		err = database.Instance.Unscoped().Model(&database.Image{}).Where("library_id = ?", library.ID).Delete(database.Image{}).Error
 		if err != nil {
 			task.AbortError(err)
