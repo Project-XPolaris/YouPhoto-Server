@@ -64,4 +64,8 @@ storage:
     secret: "password"
     region: "us-east-1"
 
+imageclassify:
+  enable: false
+  host: "http://localhost:5000"
+
 

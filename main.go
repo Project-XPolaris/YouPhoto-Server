@@ -32,6 +32,7 @@ func main() {
 	appEngine.UsePlugin(plugins.DefaultThumbnailServicePlugin)
 	appEngine.UsePlugin(&plugins.DefaultRegisterPlugin)
 	appEngine.UsePlugin(plugins.StorageEnginePlugin)
+	appEngine.UsePlugin(plugins.DefaultImageClassifyPlugin)
 	if config.Instance.YouAuthConfig != nil {
 		plugins.CreateYouAuthPlugin()
 		plugins.DefaultYouAuthOauthPlugin.ConfigPrefix = config.Instance.YouAuthConfigPrefix

@@ -16,6 +16,7 @@ type BaseImageTemplate struct {
 	Updated     string               `json:"updated"`
 	BlurHash    string               `json:"blurHash"`
 	ImageColors []ImageColorTemplate `json:"imageColors"`
+	Classify    []PredictionTemplate `json:"classify"`
 }
 
 func NewBaseImageTemplate(data *database.Image) BaseImageTemplate {
@@ -30,6 +31,7 @@ func NewBaseImageTemplate(data *database.Image) BaseImageTemplate {
 		Domain:      data.Domain,
 		BlurHash:    data.BlurHash,
 		ImageColors: NewColorTemplateList(data.ImageColor),
+		Classify:    NewPredictionTemplateList(data.Prediction),
 	}
 }
 
@@ -111,6 +113,26 @@ func NewColorMatchTemplateList(data []*service.MatchColorResult) []ColorMatchTem
 	result := make([]ColorMatchTemplate, len(data))
 	for i, v := range data {
 		result[i] = NewColorMatchTemplate(v)
+	}
+	return result
+}
+
+type PredictionTemplate struct {
+	Prob  float64 `json:"prob"`
+	Label string  `json:"label"`
+}
+
+func NewPredictionTemplate(data *database.Prediction) PredictionTemplate {
+	return PredictionTemplate{
+		Prob:  data.Probability,
+		Label: data.Label,
+	}
+}
+
+func NewPredictionTemplateList(data []*database.Prediction) []PredictionTemplate {
+	result := make([]PredictionTemplate, len(data))
+	for i, v := range data {
+		result[i] = NewPredictionTemplate(v)
 	}
 	return result
 }

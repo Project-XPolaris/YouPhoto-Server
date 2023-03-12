@@ -18,7 +18,8 @@ import (
 )
 
 type ProcessImageOption struct {
-	ForceRefreshDomainColor bool `json:"forceRefreshDomainColor"`
+	ForceRefreshDomainColor  bool `json:"forceRefreshDomainColor"`
+	ForceImageClassification bool `json:"forceImageClassification"`
 }
 
 func CreateImage(path string, libraryId uint, fullPath string, option *ProcessImageOption) (*database.Image, error) {
@@ -96,6 +97,7 @@ func CreateImage(path string, libraryId uint, fullPath string, option *ProcessIm
 		if err != nil {
 			log.Error(err)
 		}
+
 		// read dominant color
 		if isUpdate || len(image.Domain) == 0 || option.ForceRefreshDomainColor {
 			if source == nil {
@@ -135,6 +137,33 @@ func CreateImage(path string, libraryId uint, fullPath string, option *ProcessIm
 		}
 		err = database.Instance.Save(&image).Error
 	}()
+	if isUpdate || option.ForceImageClassification {
+		// read image classification
+		rawFile, err := os.Open(fullPath)
+		if err != nil {
+			log.Error(err)
+		}
+		if rawFile != nil {
+			predictions, _ := plugins.DefaultImageClassifyPlugin.Client.Predict(rawFile)
+			savePredictionList := make([]*database.Prediction, 0)
+			for _, prediction := range predictions {
+				savePredictionList = append(savePredictionList, &database.Prediction{
+					ImageId:     image.ID,
+					Label:       prediction.Label,
+					Probability: prediction.Prob,
+				})
+			}
+			err = database.Instance.Where("image_id = ?", image.ID).Delete(&database.Prediction{}).Error
+			if err != nil {
+				log.Error(err)
+			}
+			err = database.Instance.Create(&savePredictionList).Error
+			if err != nil {
+				log.Error(err)
+			}
+
+		}
+	}
 	err = database.Instance.Save(&image).Error
 	return &image, err
 }
@@ -150,12 +179,15 @@ type ImagesQueryBuilder struct {
 	MaxWidth       int      `hsource:"query" hname:"maxWidth"`
 	MaxHeight      int      `hsource:"query" hname:"maxHeight"`
 	UserId         uint
-	ColorRank1     string `hsource:"query" hname:"colorRank1"`
-	ColorRank2     string `hsource:"query" hname:"colorRank2"`
-	ColorRank3     string `hsource:"query" hname:"colorRank3"`
-	NearAvgId      uint   `hsource:"query" hname:"nearAvgId"`
-	MinAvgDistance int    `hsource:"query" hname:"minAvgDistance"`
-	MaxDistance    int    `hsource:"query" hname:"maxDistance"`
+	ColorRank1     string  `hsource:"query" hname:"colorRank1"`
+	ColorRank2     string  `hsource:"query" hname:"colorRank2"`
+	ColorRank3     string  `hsource:"query" hname:"colorRank3"`
+	NearAvgId      uint    `hsource:"query" hname:"nearAvgId"`
+	MinAvgDistance int     `hsource:"query" hname:"minAvgDistance"`
+	MaxDistance    int     `hsource:"query" hname:"maxDistance"`
+	LabelSearch    string  `hsource:"query" hname:"labelSearch"`
+	MaxProbability float64 `hsource:"query" hname:"maxProbability"`
+	MinProbability float64 `hsource:"query" hname:"minProbability"`
 }
 
 func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
@@ -256,9 +288,17 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 		query = query.Joins("INNER JOIN (?) as image_hash_distance on image_hash_distance.id = images.id", imageHashTable).
 			Where("image_hash_distance.distance < ?", q.MinAvgDistance).
 			Order("image_hash_distance.distance asc")
-
 	}
-
+	if len(q.LabelSearch) > 0 {
+		query = query.Joins("INNER JOIN predictions on predictions.image_id = images.id").
+			Where("predictions.label like ?", fmt.Sprintf("%%%s%%", q.LabelSearch))
+		if q.MaxProbability > 0 {
+			query = query.Where("predictions.probability <= ?", q.MaxProbability)
+		}
+		if q.MinProbability > 0 {
+			query = query.Where("predictions.probability >= ?", q.MinProbability)
+		}
+	}
 	if len(q.Random) > 0 {
 		if database.Instance.Dialector.Name() == "sqlite" {
 			query = query.Order("random()")
@@ -272,6 +312,7 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 	}
 	err := query.
 		Preload("ImageColor").
+		Preload("Prediction").
 		Offset((q.Page - 1) * q.PageSize).
 		Limit(q.PageSize).
 		Find(&images).

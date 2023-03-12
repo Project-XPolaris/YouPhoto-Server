@@ -24,6 +24,7 @@ type Image struct {
 	DifHash    string
 	PerHash    string
 	ImageColor []*ImageColor
+	Prediction []*Prediction
 }
 
 func (i *Image) GetAvgHash() (uint64, error) {
