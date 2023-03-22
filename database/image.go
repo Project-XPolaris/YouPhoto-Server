@@ -8,23 +8,29 @@ import (
 
 type Image struct {
 	gorm.Model
-	LibraryId  uint
-	Name       string
-	Path       string
-	Thumbnail  string
-	LastModify time.Time
-	Size       uint
-	Width      uint
-	Height     uint
-	Md5        string
-	Library    *Library
-	Domain     string
-	BlurHash   string
-	AvgHash    string
-	DifHash    string
-	PerHash    string
-	ImageColor []*ImageColor
-	Prediction []*Prediction
+	LibraryId          uint
+	Name               string
+	Path               string
+	Thumbnail          string
+	LastModify         time.Time
+	Size               uint
+	Width              uint
+	Height             uint
+	Md5                string
+	Library            *Library
+	Domain             string
+	BlurHash           string
+	AvgHash            string
+	DifHash            string
+	PerHash            string
+	Hentai             float64 `gorm:"default:0"`
+	Drawings           float64 `gorm:"default:0"`
+	Neutral            float64 `gorm:"default:0"`
+	Sexy               float64 `gorm:"default:0"`
+	Porn               float64 `gorm:"default:0"`
+	ImageColor         []*ImageColor
+	Prediction         []*Prediction
+	DeepdanbooruResult []*DeepdanbooruResult
 }
 
 func (i *Image) GetAvgHash() (uint64, error) {

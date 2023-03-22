@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-func getImageFromFilePath(filePath string) (image.Image, error) {
+func GetImageFromFilePath(filePath string) (image.Image, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -25,7 +25,7 @@ type ImageHash struct {
 }
 
 func getImageHash(filePath string) (*ImageHash, error) {
-	image, err := getImageFromFilePath(filePath)
+	image, err := GetImageFromFilePath(filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func getImageHash(filePath string) (*ImageHash, error) {
 	result.PerHash = perHash.GetHash()
 	return result, nil
 }
-func getImageHashFromImage(inputImage image.Image) (*ImageHash, error) {
+func GetImageHashFromImage(inputImage image.Image) (*ImageHash, error) {
 	result := &ImageHash{}
 	avgHash, err := goimagehash.AverageHash(inputImage)
 	if err != nil {

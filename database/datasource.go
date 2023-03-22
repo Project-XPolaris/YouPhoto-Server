@@ -8,6 +8,6 @@ import (
 var DefaultPlugin = &datasource.Plugin{
 	OnConnected: func(db *gorm.DB) {
 		Instance = db
-		Instance.AutoMigrate(&Library{}, &Image{}, &Oauth{}, &User{}, &ImageColor{}, &Prediction{})
+		Instance.AutoMigrate(&Library{}, &Image{}, &Oauth{}, &User{}, &ImageColor{}, &Prediction{}, &DeepdanbooruResult{})
 	},
 }

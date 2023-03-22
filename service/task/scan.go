@@ -1,4 +1,4 @@
-package service
+package task
 
 import (
 	"errors"
@@ -7,8 +7,7 @@ import (
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/module"
 	"github.com/projectxpolaris/youphoto/plugins"
-	"github.com/projectxpolaris/youphoto/utils"
-	"gorm.io/gorm"
+	"github.com/projectxpolaris/youphoto/service"
 	"path/filepath"
 )
 
@@ -27,73 +26,40 @@ func (t *SyncLibraryTask) Stop() error {
 
 func (t *SyncLibraryTask) Start() error {
 	t.Logger.Info("start sync remove missing images")
-	var existImageCount int64
-	err := database.Instance.Model(database.Image{}).
-		Where("library_id = ?", t.library.ID).Count(&existImageCount).Error
+	removeNotExistsImageTask := NewRemoveNotExistImageTask(&RemoveNotExistImageTaskOption{
+		libraryId:    t.library.ID,
+		ParentTaskId: t.Id,
+		Uid:          t.Owner,
+	})
+	t.SubTaskList = append(t.SubTaskList, removeNotExistsImageTask)
+	err := task.RunTask(removeNotExistsImageTask)
 	if err != nil {
-		t.AbortError(err)
-		return err
-	}
-	for idx := 0; idx < int(existImageCount); idx += 20 {
-		if t.stopFlag {
-			t.Status = TaskStatusStop
-			return nil
-		}
-		var images []database.Image
-		err = database.Instance.Model(database.Image{}).
-			Where("library_id = ?", t.library.ID).
-			Offset(idx).
-			Limit(20).
-			Find(&images).Error
-		if err != nil {
-			t.AbortError(err)
-			return err
-		}
-		err = database.Instance.Transaction(func(tx *gorm.DB) error {
-			for _, image := range images {
-				if !utils.CheckFileExist(filepath.Join(t.library.Path, image.Path)) {
-					err := tx.Unscoped().Model(&database.Image{}).Where("id = ?", image.ID).Delete(database.Image{}).Error
-					if err != nil {
-						return err
-					}
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			t.AbortError(err)
-			return err
-		}
+		return t.AbortError(err)
 	}
 
 	//count total
 	if t.stopFlag {
-		t.Status = TaskStatusStop
+		t.Status = task.GetStatusText(nil, task.StatusDone)
 		return nil
 	}
-	scanner := NewImageScanner(t.library.Path)
-	idx := 0
-	scanner.OnHit = func(path string) error {
-		t.output.Total += 1
-		if t.stopFlag {
-			t.Status = TaskStatusStop
-			return StopError
-		}
-		return nil
-	}
-	err = scanner.Scan()
+	scanFileTask := NewScanImageFileTask(&ScanImageFileTaskOption{
+		ParentTaskId: t.Id,
+		Uid:          t.Owner,
+		Path:         t.library.Path,
+	})
+	t.SubTaskList = append(t.SubTaskList, scanFileTask)
+	t.Logger.Info("start scan library")
+	err = task.RunTask(scanFileTask)
 	if err != nil {
-		if !errors.Is(err, StopError) {
-			t.AbortError(err)
-			return err
-		}
+		return t.AbortError(err)
 	}
-	scanner.OnHit = func(path string) error {
+	t.output.Total = int64(len(scanFileTask.pathList))
+	for idx, path := range scanFileTask.pathList {
 		if t.stopFlag {
-			t.Status = TaskStatusStop
-			return StopError
+			t.Done()
+			return service.StopError
 		}
-		t.output.Current += int64(idx + 1)
+		t.output.Current = int64(idx + 1)
 		t.output.CurrentPath = path
 		t.output.CurrentName = filepath.Base(path)
 		imagePath, err := filepath.Rel(t.library.Path, path)
@@ -101,23 +67,22 @@ func (t *SyncLibraryTask) Start() error {
 			t.AbortFileError(path, err)
 			return nil
 		}
-		_, err = CreateImage(imagePath, t.library.ID, path, t.option.ProcessOption)
+		createImageTask := NewCreateImageTask(&CreateImageTaskOption{
+			Uid:          t.Owner,
+			path:         imagePath,
+			fullPath:     path,
+			CreateOption: t.option.ProcessOption,
+			libraryId:    t.library.ID,
+		})
+		t.SubTaskList = append(t.SubTaskList, createImageTask)
+		err = task.RunTask(createImageTask)
 		if err != nil {
-			if err != nil {
-				t.AbortFileError(path, err)
-				return nil
-			}
+
+			t.AbortFileError(path, err)
+			return nil
+
 		} else {
 			t.OnFileComplete()
-		}
-		return nil
-	}
-	t.Logger.Info("start scan library")
-	err = scanner.Scan()
-	if err != nil {
-		if !errors.Is(err, StopError) {
-			t.AbortError(err)
-			return err
 		}
 	}
 	t.Done()
@@ -152,16 +117,16 @@ func (t *SyncLibraryTask) GetOutput() interface{} {
 }
 
 func (t *SyncLibraryTask) Done() {
-	t.Status = TaskStatusDone
 	if t.option.OnComplete != nil {
 		t.option.OnComplete(t)
 	}
+	t.BaseTask.Done()
 }
-func (t *SyncLibraryTask) AbortError(err error) {
-	t.BaseTask.Err = err
+func (t *SyncLibraryTask) AbortError(err error) error {
 	if t.option.OnError != nil {
 		t.option.OnError(t, err)
 	}
+	return t.BaseTask.AbortError(err)
 }
 func (t *SyncLibraryTask) AbortFileError(imagePath string, err error) {
 	fileErr := errors.New(imagePath + " err: " + err.Error())
@@ -176,39 +141,39 @@ func (t *SyncLibraryTask) OnFileComplete() {
 	}
 }
 func CreateSyncLibraryTask(option CreateScanTaskOption) (*SyncLibraryTask, error) {
-	task := &SyncLibraryTask{
-		BaseTask: task.NewBaseTask(TaskTypeScanLibrary, "-1", TaskStatusRunning),
+	newTask := &SyncLibraryTask{
+		BaseTask: task.NewBaseTask(TypeScanLibrary, "-1", task.GetStatusText(nil, task.StatusDone)),
 		option:   option,
 	}
-	for _, task := range module.Task.Pool.Tasks {
-		if scanOutput, ok := task.(*SyncLibraryTask); ok && scanOutput.output.Id == option.LibraryId {
-			if task.GetStatus() == TaskStatusRunning {
+	for _, existedTask := range module.Task.Pool.Tasks {
+		if scanOutput, ok := existedTask.(*SyncLibraryTask); ok && scanOutput.output.Id == option.LibraryId {
+			if existedTask.GetStatus() == task.GetStatusText(nil, task.StatusDone) {
 				return scanOutput, nil
 			}
-			module.Task.Pool.RemoveTaskById(task.GetId())
+			module.Task.Pool.RemoveTaskById(existedTask.GetId())
 			break
 		}
 	}
-	library, err := GetLibraryWithUser(option.LibraryId, option.UserId)
+	library, err := service.GetLibraryWithUser(option.LibraryId, option.UserId)
 	if err != nil {
 		return nil, err
 	}
 	if library == nil {
 		return nil, errors.New("library not found")
 	}
-	task.library = library
+	newTask.library = library
 	output := ScanTaskOutput{
 		Id:   library.ID,
 		Path: library.Path,
 		Name: library.Name,
 	}
-	task.output = &output
-	task.Logger = plugins.DefaultYouLogPlugin.Logger.NewScope("Task").WithFields(
+	newTask.output = &output
+	newTask.Logger = plugins.DefaultYouLogPlugin.Logger.NewScope("Task").WithFields(
 		youlog.Fields{
 			"path":      library.Path,
 			"libraryId": library.ID,
 		})
 
-	module.Task.Pool.AddTask(task)
-	return task, nil
+	module.Task.Pool.AddTask(newTask)
+	return newTask, nil
 }

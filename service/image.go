@@ -1,172 +1,11 @@
 package service
 
 import (
-	"context"
 	"fmt"
 	"github.com/projectxpolaris/youphoto/database"
-	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/utils"
-	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
-	image2 "image"
-	"os"
-	"sort"
 	"strings"
-	"time"
-
-	"path/filepath"
 )
-
-type ProcessImageOption struct {
-	ForceRefreshDomainColor  bool `json:"forceRefreshDomainColor"`
-	ForceImageClassification bool `json:"forceImageClassification"`
-}
-
-func CreateImage(path string, libraryId uint, fullPath string, option *ProcessImageOption) (*database.Image, error) {
-	if option == nil {
-		option = &ProcessImageOption{}
-	}
-	var image database.Image
-	// check if it exists
-	err := database.Instance.Where("library_id = ?", libraryId).Where("path = ?", path).First(&image).Error
-	if err != nil {
-		if err != gorm.ErrRecordNotFound {
-			return nil, err
-		}
-		image = database.Image{Path: path, LibraryId: libraryId, Name: filepath.Base(path)}
-	}
-	md5, err := utils.GetFileMD5(fullPath)
-	if err != nil {
-		return nil, err
-	}
-	isUpdate := md5 != image.Md5
-	image.Md5 = md5
-	fmt.Println("md5: ", md5)
-	// generate thumbnail
-	if isUpdate && len(image.Thumbnail) > 0 {
-		plugins.GetDefaultStorage().Delete(context.Background(), utils.DefaultBucket, utils.GetThumbnailsPath(image.Thumbnail))
-		image.Thumbnail = ""
-	}
-	if len(image.Thumbnail) == 0 {
-		thumbnailTimestart := time.Now()
-		image.Thumbnail, err = GenerateThumbnail(fullPath)
-		if err != nil {
-			return nil, err
-		}
-		thumbnailTime := time.Since(thumbnailTimestart)
-		fmt.Printf("thumbnail time: %s\n", thumbnailTime)
-	}
-	// read image info
-	imageInfoTimestart := time.Now()
-	width, height, _ := utils.GetImageDimension(fullPath)
-	imageInfoTime := time.Since(imageInfoTimestart)
-	fmt.Printf("image info time: %s\n", imageInfoTime)
-	image.Width = uint(width)
-	image.Height = uint(height)
-	// read lastModify
-	fileStat, err := os.Stat(fullPath)
-	if err == nil {
-		image.LastModify = fileStat.ModTime()
-		image.Size = uint(fileStat.Size())
-	}
-	var source image2.Image
-	// read image hash
-	if isUpdate || len(image.AvgHash) == 0 {
-		if source == nil {
-			source, err = getImageFromFilePath(fullPath)
-			if err != nil {
-				return nil, err
-			}
-		}
-		imageHash, _ := getImageHashFromImage(source)
-		if imageHash != nil {
-			image.AvgHash = fmt.Sprintf("%d", imageHash.AvgHash)
-			image.DifHash = fmt.Sprintf("%d", imageHash.DifHash)
-			image.PerHash = fmt.Sprintf("%d", imageHash.PerHash)
-		}
-	}
-	go func() {
-		// read blur hash
-		if isUpdate || len(image.BlurHash) == 0 {
-			blurHash, _ := utils.GetBlurHash(image.Thumbnail)
-			if len(blurHash) > 0 {
-				image.BlurHash = blurHash
-			}
-		}
-		err = database.Instance.Save(&image).Error
-		if err != nil {
-			log.Error(err)
-		}
-
-		// read dominant color
-		if isUpdate || len(image.Domain) == 0 || option.ForceRefreshDomainColor {
-			if source == nil {
-				source, err = getImageFromFilePath(fullPath)
-				if err != nil {
-					log.Error(err)
-				}
-			}
-			domainColors, _ := utils.GetMostDomainColorFromImage(source)
-			if len(domainColors) > 0 {
-				sort.Slice(domainColors, func(i, j int) bool {
-					return domainColors[i].Cnt > domainColors[j].Cnt
-				})
-				image.Domain = fmt.Sprintf("#%02x%02x%02x", domainColors[0].Color.R, domainColors[0].Color.G, domainColors[0].Color.B)
-			}
-			if domainColors != nil && len(domainColors) > 0 {
-				colorToInsert := make([]database.ImageColor, 0)
-				totalCnt := 0
-				for _, color := range domainColors {
-					totalCnt += color.Cnt
-				}
-				for idx, color := range domainColors {
-					colorToInsert = append(colorToInsert, database.ImageColor{
-						ImageId: image.ID,
-						Value:   fmt.Sprintf("#%02x%02x%02x", color.Color.R, color.Color.G, color.Color.B),
-						Cnt:     color.Cnt,
-						Rank:    idx,
-						Percent: float64(color.Cnt) / float64(totalCnt),
-						R:       int(color.Color.R),
-						G:       int(color.Color.G),
-						B:       int(color.Color.B),
-					})
-				}
-				database.Instance.Unscoped().Where("image_id = ?", image.ID).Delete(&database.ImageColor{ImageId: image.ID})
-				database.Instance.Save(&colorToInsert)
-			}
-		}
-		err = database.Instance.Save(&image).Error
-	}()
-	if isUpdate || option.ForceImageClassification {
-		// read image classification
-		rawFile, err := os.Open(fullPath)
-		if err != nil {
-			log.Error(err)
-		}
-		if rawFile != nil {
-			predictions, _ := plugins.DefaultImageClassifyPlugin.Client.Predict(rawFile)
-			savePredictionList := make([]*database.Prediction, 0)
-			for _, prediction := range predictions {
-				savePredictionList = append(savePredictionList, &database.Prediction{
-					ImageId:     image.ID,
-					Label:       prediction.Label,
-					Probability: prediction.Prob,
-				})
-			}
-			err = database.Instance.Where("image_id = ?", image.ID).Delete(&database.Prediction{}).Error
-			if err != nil {
-				log.Error(err)
-			}
-			err = database.Instance.Create(&savePredictionList).Error
-			if err != nil {
-				log.Error(err)
-			}
-
-		}
-	}
-	err = database.Instance.Save(&image).Error
-	return &image, err
-}
 
 type ImagesQueryBuilder struct {
 	Page           int
@@ -179,15 +18,20 @@ type ImagesQueryBuilder struct {
 	MaxWidth       int      `hsource:"query" hname:"maxWidth"`
 	MaxHeight      int      `hsource:"query" hname:"maxHeight"`
 	UserId         uint
-	ColorRank1     string  `hsource:"query" hname:"colorRank1"`
-	ColorRank2     string  `hsource:"query" hname:"colorRank2"`
-	ColorRank3     string  `hsource:"query" hname:"colorRank3"`
-	NearAvgId      uint    `hsource:"query" hname:"nearAvgId"`
-	MinAvgDistance int     `hsource:"query" hname:"minAvgDistance"`
-	MaxDistance    int     `hsource:"query" hname:"maxDistance"`
-	LabelSearch    string  `hsource:"query" hname:"labelSearch"`
-	MaxProbability float64 `hsource:"query" hname:"maxProbability"`
-	MinProbability float64 `hsource:"query" hname:"minProbability"`
+	ColorRank1     string   `hsource:"query" hname:"colorRank1"`
+	ColorRank2     string   `hsource:"query" hname:"colorRank2"`
+	ColorRank3     string   `hsource:"query" hname:"colorRank3"`
+	NearAvgId      uint     `hsource:"query" hname:"nearAvgId"`
+	MinAvgDistance int      `hsource:"query" hname:"minAvgDistance"`
+	MaxDistance    int      `hsource:"query" hname:"maxDistance"`
+	LabelSearch    string   `hsource:"query" hname:"labelSearch"`
+	MaxProbability float64  `hsource:"query" hname:"maxProbability"`
+	MinProbability float64  `hsource:"query" hname:"minProbability"`
+	NSFW           bool     `hsource:"query" hname:"nsfw"`
+	NSFWMax        float64  `hsource:"query" hname:"nsfwMax"`
+	NSFWMin        float64  `hsource:"query" hname:"nsfwMin"`
+	DbTag          []string `hsource:"query" hname:"dbTag"`
+	DbTagNot       []string `hsource:"query" hname:"dbTagNot"`
 }
 
 func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
@@ -299,6 +143,15 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 			query = query.Where("predictions.probability >= ?", q.MinProbability)
 		}
 	}
+	if q.NSFW {
+		threshold := q.NSFWMax
+		if threshold == 0 {
+			threshold = 0.8
+		}
+		query = query.Where("hentai <= ?", threshold).
+			Where("sexy <= ?", threshold).
+			Where("porn <= ?", threshold)
+	}
 	if len(q.Random) > 0 {
 		if database.Instance.Dialector.Name() == "sqlite" {
 			query = query.Order("random()")
@@ -310,9 +163,32 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 			query = query.Order(fmt.Sprintf("images.%s", order))
 		}
 	}
+
+	if q.DbTag != nil || q.DbTagNot != nil {
+		dprFilterTable := database.Instance.
+			Table("deepdanbooru_results").
+			Distinct("deepdanbooru_results.image_id")
+		if q.DbTag != nil {
+			orQuery := database.Instance
+			for _, tag := range q.DbTag {
+				orQuery = orQuery.Or("deepdanbooru_results.tag like ?", fmt.Sprintf("%%%s%%", tag))
+			}
+			dprFilterTable = dprFilterTable.Where(orQuery)
+		}
+		if q.DbTagNot != nil {
+			notTagQuery := database.Instance
+			for _, notTag := range q.DbTagNot {
+				notTagQuery = notTagQuery.Where("deepdanbooru_results.tag not like ?", fmt.Sprintf("%%%s%%", notTag))
+			}
+			dprFilterTable = dprFilterTable.Where(notTagQuery)
+		}
+
+		query = query.Joins("INNER JOIN (?) as dbrf on dbrf.image_id = images.id", dprFilterTable)
+	}
 	err := query.
 		Preload("ImageColor").
 		Preload("Prediction").
+		Preload("DeepdanbooruResult").
 		Offset((q.Page - 1) * q.PageSize).
 		Limit(q.PageSize).
 		Find(&images).

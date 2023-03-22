@@ -6,32 +6,44 @@ import (
 )
 
 type BaseImageTemplate struct {
-	Id          uint                 `json:"id"`
-	Name        string               `json:"name"`
-	Thumbnail   string               `json:"thumbnail"`
-	Width       uint                 `json:"width"`
-	Height      uint                 `json:"height"`
-	Domain      string               `json:"domain"`
-	Created     string               `json:"created"`
-	Updated     string               `json:"updated"`
-	BlurHash    string               `json:"blurHash"`
-	ImageColors []ImageColorTemplate `json:"imageColors"`
-	Classify    []PredictionTemplate `json:"classify"`
+	Id                 uint                   `json:"id"`
+	Name               string                 `json:"name"`
+	Thumbnail          string                 `json:"thumbnail"`
+	Width              uint                   `json:"width"`
+	Height             uint                   `json:"height"`
+	Domain             string                 `json:"domain"`
+	Created            string                 `json:"created"`
+	Updated            string                 `json:"updated"`
+	BlurHash           string                 `json:"blurHash"`
+	ImageColors        []ImageColorTemplate   `json:"imageColors"`
+	Classify           []PredictionTemplate   `json:"classify"`
+	Hentai             float64                `json:"hentai"`
+	Drawings           float64                `json:"drawings"`
+	Neutral            float64                `json:"neutral"`
+	Sexy               float64                `json:"sexy"`
+	Porn               float64                `json:"porn"`
+	DeepdanbooruResult []DeepdanbooruTemplate `json:"deepdanbooruResult"`
 }
 
 func NewBaseImageTemplate(data *database.Image) BaseImageTemplate {
 	return BaseImageTemplate{
-		Id:          data.Model.ID,
-		Name:        data.Name,
-		Thumbnail:   data.Thumbnail,
-		Width:       data.Width,
-		Height:      data.Height,
-		Created:     data.Model.CreatedAt.Format(TimeFormat),
-		Updated:     data.Model.UpdatedAt.Format(TimeFormat),
-		Domain:      data.Domain,
-		BlurHash:    data.BlurHash,
-		ImageColors: NewColorTemplateList(data.ImageColor),
-		Classify:    NewPredictionTemplateList(data.Prediction),
+		Id:                 data.Model.ID,
+		Name:               data.Name,
+		Thumbnail:          data.Thumbnail,
+		Width:              data.Width,
+		Height:             data.Height,
+		Created:            data.Model.CreatedAt.Format(TimeFormat),
+		Updated:            data.Model.UpdatedAt.Format(TimeFormat),
+		Domain:             data.Domain,
+		BlurHash:           data.BlurHash,
+		ImageColors:        NewColorTemplateList(data.ImageColor),
+		Classify:           NewPredictionTemplateList(data.Prediction),
+		Hentai:             data.Hentai,
+		Drawings:           data.Drawings,
+		Neutral:            data.Neutral,
+		Sexy:               data.Sexy,
+		Porn:               data.Porn,
+		DeepdanbooruResult: NewDeepdanbooruTemplateList(data.DeepdanbooruResult),
 	}
 }
 
@@ -133,6 +145,26 @@ func NewPredictionTemplateList(data []*database.Prediction) []PredictionTemplate
 	result := make([]PredictionTemplate, len(data))
 	for i, v := range data {
 		result[i] = NewPredictionTemplate(v)
+	}
+	return result
+}
+
+type DeepdanbooruTemplate struct {
+	Tag  string  `json:"tag"`
+	Prob float64 `json:"prob"`
+}
+
+func NewDeepdanbooruTemplate(data *database.DeepdanbooruResult) DeepdanbooruTemplate {
+	return DeepdanbooruTemplate{
+		Tag:  data.Tag,
+		Prob: data.Prob,
+	}
+}
+
+func NewDeepdanbooruTemplateList(data []*database.DeepdanbooruResult) []DeepdanbooruTemplate {
+	result := make([]DeepdanbooruTemplate, len(data))
+	for i, v := range data {
+		result[i] = NewDeepdanbooruTemplate(v)
 	}
 	return result
 }

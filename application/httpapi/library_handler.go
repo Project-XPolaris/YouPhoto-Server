@@ -6,6 +6,7 @@ import (
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/module"
 	"github.com/projectxpolaris/youphoto/service"
+	"github.com/projectxpolaris/youphoto/service/task"
 	"net/http"
 )
 
@@ -70,13 +71,17 @@ var scanLibraryHandler haruka.RequestHandler = func(context *haruka.Context) {
 		AbortError(context, err, http.StatusBadRequest)
 		return
 	}
-	precessOption := service.ProcessImageOption{}
-	context.ParseJson(&precessOption)
-	option := service.CreateScanTaskOption{
+	precessOption := task.ProcessImageOption{}
+	err = context.ParseJson(&precessOption)
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	option := task.CreateScanTaskOption{
 		LibraryId:     uint(id),
 		ProcessOption: &precessOption,
 	}
-	task, err := service.CreateSyncLibraryTask(option)
+	task, err := task.CreateSyncLibraryTask(option)
 	if err != nil {
 		AbortError(context, err, http.StatusBadRequest)
 		return
@@ -96,10 +101,10 @@ var removeLibraryHandler haruka.RequestHandler = func(context *haruka.Context) {
 		AbortError(context, err, http.StatusBadRequest)
 		return
 	}
-	option := service.RemoveLibraryTaskOption{
+	option := task.RemoveLibraryTaskOption{
 		LibraryId: uint(id),
 	}
-	task, err := service.CreateRemoveLibraryTask(option)
+	task, err := task.CreateRemoveLibraryTask(option)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return

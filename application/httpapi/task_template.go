@@ -1,6 +1,8 @@
 package httpapi
 
-import "github.com/projectxpolaris/youphoto/service"
+import (
+	"github.com/projectxpolaris/youphoto/service/task"
+)
 
 type ScanLibraryDetail struct {
 	Id          uint   `json:"id"`
@@ -12,7 +14,7 @@ type ScanLibraryDetail struct {
 	Name        string `json:"name"`
 }
 
-func NewScanLibraryDetail(output *service.ScanTaskOutput) (*ScanLibraryDetail, error) {
+func NewScanLibraryDetail(output *task.ScanTaskOutput) (*ScanLibraryDetail, error) {
 	return &ScanLibraryDetail{
 		Id:          output.Id,
 		Path:        output.Path,
@@ -32,7 +34,7 @@ type RemoveLibraryDetail struct {
 	Current int64  `json:"current"`
 }
 
-func NewRemoveLibraryDetail(output *service.RemoveLibraryTaskOutput) (*RemoveLibraryDetail, error) {
+func NewRemoveLibraryDetail(output *task.RemoveLibraryTaskOutput) (*RemoveLibraryDetail, error) {
 	return &RemoveLibraryDetail{
 		Id:      output.Id,
 		Path:    output.Path,

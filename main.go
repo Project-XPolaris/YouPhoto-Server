@@ -33,6 +33,8 @@ func main() {
 	appEngine.UsePlugin(&plugins.DefaultRegisterPlugin)
 	appEngine.UsePlugin(plugins.StorageEnginePlugin)
 	appEngine.UsePlugin(plugins.DefaultImageClassifyPlugin)
+	appEngine.UsePlugin(plugins.DefaultNSFWCheckPlugin)
+	appEngine.UsePlugin(plugins.DefaultDeepDanbooruPlugin)
 	if config.Instance.YouAuthConfig != nil {
 		plugins.CreateYouAuthPlugin()
 		plugins.DefaultYouAuthOauthPlugin.ConfigPrefix = config.Instance.YouAuthConfigPrefix
