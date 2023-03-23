@@ -19,12 +19,13 @@ var serviceInfoHandler haruka.RequestHandler = func(context *haruka.Context) {
 		return
 	}
 	context.JSON(haruka.JSON{
-		"success":    true,
-		"name":       "YouPhoto service",
-		"authEnable": config.Instance.EnableAuth,
-		"authUrl":    fmt.Sprintf("%s/%s", config.Instance.YouPlusUrl, "user/auth"),
-		"oauth":      true,
-		"auth":       authMaps,
+		"success":            true,
+		"name":               "YouPhoto service",
+		"authEnable":         config.Instance.EnableAuth,
+		"authUrl":            fmt.Sprintf("%s/%s", config.Instance.YouPlusUrl, "user/auth"),
+		"oauth":              true,
+		"auth":               authMaps,
+		"deepdanbooruEnable": plugins.DefaultDeepDanbooruPlugin.Enable,
 	})
 }
 

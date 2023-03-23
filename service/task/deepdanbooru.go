@@ -4,7 +4,6 @@ import (
 	"github.com/allentom/harukap/module/task"
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/plugins"
-	"os"
 )
 
 type DeepdanbooruTaskOption struct {
@@ -17,9 +16,10 @@ type DeepdanbooruTaskOutput struct {
 }
 type DeepdanbooruTask struct {
 	*task.BaseTask
-	option     *DeepdanbooruTaskOption
-	TaskOutput *DeepdanbooruTaskOutput
-	thumbnail  string
+	option      *DeepdanbooruTaskOption
+	TaskOutput  *DeepdanbooruTaskOutput
+	thumbnail   string
+	Predictions []*database.DeepdanbooruResult
 }
 
 func (t *DeepdanbooruTask) Stop() error {
@@ -27,15 +27,15 @@ func (t *DeepdanbooruTask) Stop() error {
 }
 
 func (t *DeepdanbooruTask) Start() error {
-	rawFile, err := os.Open(t.option.FullPath)
-	result, err := plugins.DefaultDeepDanbooruPlugin.Client.Tagging(rawFile)
+	request := plugins.DefaultDeepdanbooruLauncher.Launch(t.option.FullPath)
+	result, err := request.Wait()
 	if err != nil {
 		return t.AbortError(err)
 	}
-	savePredictions := make([]database.DeepdanbooruResult, 0)
+	savePredictions := make([]*database.DeepdanbooruResult, 0)
 	for _, prediction := range result {
 		if prediction.Prob > 0.5 {
-			savePredictions = append(savePredictions, database.DeepdanbooruResult{
+			savePredictions = append(savePredictions, &database.DeepdanbooruResult{
 				ImageId: t.option.ImageId,
 				Tag:     prediction.Tag,
 				Prob:    prediction.Prob,
@@ -47,6 +47,10 @@ func (t *DeepdanbooruTask) Start() error {
 		return t.AbortError(err)
 	}
 	err = database.Instance.Create(&savePredictions).Error
+	if err != nil {
+		return t.AbortError(err)
+	}
+	t.Predictions = savePredictions
 	t.Done()
 	return nil
 }

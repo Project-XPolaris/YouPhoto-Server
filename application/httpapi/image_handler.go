@@ -4,9 +4,11 @@ import (
 	"bytes"
 	context2 "context"
 	"github.com/allentom/haruka"
+	task2 "github.com/allentom/harukap/module/task"
 	"github.com/projectxpolaris/youphoto/config"
 	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/service"
+	"github.com/projectxpolaris/youphoto/service/task"
 	"github.com/projectxpolaris/youphoto/utils"
 	"io/ioutil"
 	"net/http"
@@ -122,4 +124,36 @@ var getColorMatchHandler haruka.RequestHandler = func(context *haruka.Context) {
 		"data":    NewColorMatchTemplateList(images),
 	})
 
+}
+
+var deepdanbooruHandler haruka.RequestHandler = func(context *haruka.Context) {
+	if !plugins.DefaultDeepDanbooruPlugin.Enable {
+		AbortError(context, nil, http.StatusForbidden)
+		return
+	}
+	id, err := context.GetQueryInt("id")
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	image, err := service.GetImageById(uint(id), "Library")
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	filePath := filepath.Join(image.Library.Path, image.Path)
+	dbrtask := task.NewDeepdanbooruTask(&task.DeepdanbooruTaskOption{
+		Uid:      "-1",
+		FullPath: filePath,
+		ImageId:  image.ID,
+	})
+	err = task2.RunTask(dbrtask)
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	context.JSON(haruka.JSON{
+		"success": true,
+		"data":    NewDeepdanbooruTemplateList(dbrtask.Predictions),
+	})
 }

@@ -42,6 +42,7 @@ func GetEngine() *haruka.Engine {
 	e.Router.GET("/images", getImageListHandler)
 	e.Router.GET("/image/{id:[0-9]+}/thumbnail", getImageThumbnailHandler)
 	e.Router.GET("/image/{id:[0-9]+}/near", getNearImageHandler)
+	e.Router.POST("/image/deepdanbooru", deepdanbooruHandler)
 	e.Router.POST("/color/match", getColorMatchHandler)
 	e.Router.GET("/thumbnail/{id}", getThumbnailHandler)
 	e.Router.GET("/image/{id:[0-9]+}/raw", getImageRawHandler)

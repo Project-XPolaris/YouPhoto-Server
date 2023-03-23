@@ -70,12 +70,13 @@ func (t *CreateImageTask) Start() error {
 		if err != gorm.ErrRecordNotFound {
 			return t.AbortError(err)
 		}
-		image = database.Image{Path: path, LibraryId: libraryId, Name: filepath.Base(path)}
+		image = database.Image{
+			Path: path, LibraryId: libraryId, Name: filepath.Base(path), LastModify: time.Now(),
+		}
 		err = database.Instance.Create(&image).Error
 		if err != nil {
 			return t.AbortError(err)
 		}
-
 	}
 	md5, err := utils.GetFileMD5(fullPath)
 	if err != nil {
@@ -250,6 +251,7 @@ func (t *CreateImageTask) Output() (interface{}, error) {
 }
 
 func NewCreateImageTask(option *CreateImageTaskOption) *CreateImageTask {
+
 	t := &CreateImageTask{
 		BaseTask: task.NewBaseTask(TypeCreateImage, option.Uid, task.GetStatusText(nil, task.StatusRunning)),
 		TaskOutput: &CreateImageTaskOutput{
@@ -259,5 +261,6 @@ func NewCreateImageTask(option *CreateImageTaskOption) *CreateImageTask {
 		option: option,
 	}
 	t.ParentTaskId = option.ParentTaskId
+
 	return t
 }

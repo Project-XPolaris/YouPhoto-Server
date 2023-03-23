@@ -112,7 +112,7 @@ func (t *RemoveLibraryTask) GetOutput() interface{} {
 func CreateRemoveLibraryTask(option RemoveLibraryTaskOption) (*RemoveLibraryTask, error) {
 	for _, existedTask := range module.Task.Pool.Tasks {
 		if removeOutput, ok := existedTask.(*RemoveLibraryTask); ok && removeOutput.output.Id == option.LibraryId {
-			if existedTask.GetStatus() == task.GetStatusText(nil, task.StatusDone) {
+			if existedTask.GetStatus() == task.GetStatusText(nil, task.StatusRunning) {
 				return removeOutput, nil
 			}
 			module.Task.Pool.RemoveTaskById(existedTask.GetId())

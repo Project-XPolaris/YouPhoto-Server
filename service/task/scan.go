@@ -146,9 +146,9 @@ func CreateSyncLibraryTask(option CreateScanTaskOption) (*SyncLibraryTask, error
 		option:   option,
 	}
 	for _, existedTask := range module.Task.Pool.Tasks {
-		if scanOutput, ok := existedTask.(*SyncLibraryTask); ok && scanOutput.output.Id == option.LibraryId {
-			if existedTask.GetStatus() == task.GetStatusText(nil, task.StatusDone) {
-				return scanOutput, nil
+		if scanTaskId, ok := existedTask.(*SyncLibraryTask); ok && scanTaskId.output.Id == option.LibraryId {
+			if existedTask.GetStatus() == task.GetStatusText(nil, task.StatusRunning) {
+				return scanTaskId, nil
 			}
 			module.Task.Pool.RemoveTaskById(existedTask.GetId())
 			break

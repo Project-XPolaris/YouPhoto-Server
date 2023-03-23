@@ -35,6 +35,7 @@ func main() {
 	appEngine.UsePlugin(plugins.DefaultImageClassifyPlugin)
 	appEngine.UsePlugin(plugins.DefaultNSFWCheckPlugin)
 	appEngine.UsePlugin(plugins.DefaultDeepDanbooruPlugin)
+	appEngine.UsePlugin(&plugins.InitPlugin{})
 	if config.Instance.YouAuthConfig != nil {
 		plugins.CreateYouAuthPlugin()
 		plugins.DefaultYouAuthOauthPlugin.ConfigPrefix = config.Instance.YouAuthConfigPrefix

@@ -3,6 +3,7 @@ package task
 import (
 	"github.com/allentom/harukap/module/task"
 	"github.com/projectxpolaris/youphoto/database"
+	"github.com/projectxpolaris/youphoto/service"
 	"github.com/projectxpolaris/youphoto/utils"
 	"gorm.io/gorm"
 	"path/filepath"
@@ -50,7 +51,7 @@ func (t *RemoveNotExistImageTask) Start() error {
 		err = database.Instance.Transaction(func(tx *gorm.DB) error {
 			for _, image := range images {
 				if !utils.CheckFileExist(filepath.Join(library.Path, image.Path)) {
-					err := tx.Unscoped().Model(&database.Image{}).Where("id = ?", image.ID).Delete(database.Image{}).Error
+					err = service.DeleteImageById(image.ID)
 					if err != nil {
 						return err
 					}

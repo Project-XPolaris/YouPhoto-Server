@@ -1,8 +1,10 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"github.com/projectxpolaris/youphoto/database"
+	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/utils"
 	"strings"
 )
@@ -212,4 +214,36 @@ func GetImageById(id uint, rels ...string) (*database.Image, error) {
 		return nil, err
 	}
 	return &image, nil
+}
+
+func DeleteImageById(id uint) error {
+	image := database.Image{}
+	err := database.Instance.Where("id = ?", id).First(&image).Error
+	if err != nil {
+		return err
+	}
+	// delete color pattern
+	err = database.Instance.Unscoped().Where("image_id = ?", id).Delete(&database.ImageColor{}).Error
+	if err != nil {
+		return err
+	}
+	// delete prediction
+	err = database.Instance.Unscoped().Where("image_id = ?", id).Delete(&database.Prediction{}).Error
+	if err != nil {
+		return err
+	}
+	// delete deepdanbooru result
+	err = database.Instance.Unscoped().Where("image_id = ?", id).Delete(&database.DeepdanbooruResult{}).Error
+	if err != nil {
+		return err
+	}
+	// delete image
+	plugins.GetDefaultStorage().Delete(context.Background(), utils.DefaultBucket, utils.GetThumbnailsPath(image.Thumbnail))
+
+	err = database.Instance.Unscoped().Delete(&image).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
