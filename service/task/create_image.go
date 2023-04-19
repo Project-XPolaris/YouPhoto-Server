@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"github.com/allentom/harukap/module/task"
 	"github.com/projectxpolaris/youphoto/database"
@@ -29,9 +30,9 @@ type ProcessImageOption struct {
 }
 type CreateImageTaskOption struct {
 	Uid          string
-	libraryId    uint
-	path         string
-	fullPath     string
+	LibraryId    uint
+	Path         string
+	FullPath     string
 	ParentTaskId string
 	CreateOption *ProcessImageOption
 }
@@ -52,9 +53,9 @@ func (t *CreateImageTask) Stop() error {
 
 func (t *CreateImageTask) Start() error {
 	option := t.option.CreateOption
-	libraryId := t.option.libraryId
-	path := t.option.path
-	fullPath := t.option.fullPath
+	libraryId := t.option.LibraryId
+	path := t.option.Path
+	fullPath := t.option.FullPath
 	if option == nil {
 		option = &ProcessImageOption{
 			EnableImageClassification: true,
@@ -65,7 +66,7 @@ func (t *CreateImageTask) Start() error {
 	}
 	var image database.Image
 	// check if it exists
-	err := database.Instance.Where("library_id = ?", libraryId).Where("path = ?", path).First(&image).Error
+	err := database.Instance.Where("library_id = ?", libraryId).Where("Path = ?", path).First(&image).Error
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
 			return t.AbortError(err)
@@ -255,12 +256,45 @@ func NewCreateImageTask(option *CreateImageTaskOption) *CreateImageTask {
 	t := &CreateImageTask{
 		BaseTask: task.NewBaseTask(TypeCreateImage, option.Uid, task.GetStatusText(nil, task.StatusRunning)),
 		TaskOutput: &CreateImageTaskOutput{
-			Filename: filepath.Base(option.fullPath),
-			FilePath: option.fullPath,
+			Filename: filepath.Base(option.FullPath),
+			FilePath: option.FullPath,
 		},
 		option: option,
 	}
 	t.ParentTaskId = option.ParentTaskId
 
 	return t
+}
+
+func SaveImageByBase64(rawImage string, filename string, libraryId uint) (*database.Image, error) {
+	// decode base64
+	dec, err := base64.StdEncoding.DecodeString(rawImage)
+	if err != nil {
+		return nil, err
+	}
+	var library database.Library
+	err = database.Instance.Where("id = ?", libraryId).First(&library).Error
+	if err != nil {
+		return nil, err
+	}
+	savePath := filepath.Join(library.Path, filename)
+
+	// write image to file
+	err = os.WriteFile(savePath, dec, 0644)
+	if err != nil {
+		return nil, err
+	}
+	// save image to database
+	createImageTask := NewCreateImageTask(&CreateImageTaskOption{
+		Uid:       "-1",
+		LibraryId: libraryId,
+		FullPath:  savePath,
+		Path:      filename,
+	})
+
+	err = createImageTask.Start()
+	if err != nil {
+		return nil, err
+	}
+	return createImageTask.Image, nil
 }

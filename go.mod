@@ -10,6 +10,7 @@ require (
 	github.com/corona10/goimagehash v1.1.0
 	github.com/disintegration/imaging v1.6.2
 	github.com/fsnotify/fsnotify v1.6.0
+	github.com/go-resty/resty/v2 v2.7.0
 	github.com/minio/md5-simd v1.1.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/project-xpolaris/youplustoolkit v0.0.0-20220331083706-51df568cbf83
@@ -39,7 +40,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/fatih/color v1.15.0 // indirect
-	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect

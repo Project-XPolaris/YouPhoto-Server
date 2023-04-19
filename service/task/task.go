@@ -14,6 +14,8 @@ const (
 	TypeImageClassify       = "ImageClassify"
 	TypeNSFWCheck           = "NSFWCheck"
 	TypeDeepdanbooru        = "Deepdanbooru"
+	TypePreprocess          = "Preprocess"
+	TypeLoraTrain           = "LoraTrain"
 )
 
 //const (

@@ -69,10 +69,10 @@ func (t *SyncLibraryTask) Start() error {
 		}
 		createImageTask := NewCreateImageTask(&CreateImageTaskOption{
 			Uid:          t.Owner,
-			path:         imagePath,
-			fullPath:     path,
+			Path:         imagePath,
+			FullPath:     path,
 			CreateOption: t.option.ProcessOption,
-			libraryId:    t.library.ID,
+			LibraryId:    t.library.ID,
 		})
 		t.SubTaskList = append(t.SubTaskList, createImageTask)
 		err = task.RunTask(createImageTask)
@@ -96,7 +96,7 @@ func (t *SyncLibraryTask) Output() (interface{}, error) {
 type ScanTaskOutput struct {
 	Id          uint   `json:"id"`
 	Name        string `json:"name"`
-	Path        string `json:"path"`
+	Path        string `json:"Path"`
 	Current     int64  `json:"current"`
 	CurrentPath string `json:"currentPath"`
 	CurrentName string `json:"currentName"`
@@ -170,10 +170,9 @@ func CreateSyncLibraryTask(option CreateScanTaskOption) (*SyncLibraryTask, error
 	newTask.output = &output
 	newTask.Logger = plugins.DefaultYouLogPlugin.Logger.NewScope("Task").WithFields(
 		youlog.Fields{
-			"path":      library.Path,
-			"libraryId": library.ID,
+			"Path":      library.Path,
+			"LibraryId": library.ID,
 		})
-
 	module.Task.Pool.AddTask(newTask)
 	return newTask, nil
 }

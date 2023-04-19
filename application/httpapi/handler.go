@@ -7,6 +7,7 @@ import (
 	"github.com/projectxpolaris/youphoto/module"
 	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/service"
+	"github.com/projectxpolaris/youphoto/service/sdw"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -26,6 +27,7 @@ var serviceInfoHandler haruka.RequestHandler = func(context *haruka.Context) {
 		"oauth":              true,
 		"auth":               authMaps,
 		"deepdanbooruEnable": plugins.DefaultDeepDanbooruPlugin.Enable,
+		"sdwEnable":          sdw.DefaultSDWClient != nil,
 	})
 }
 

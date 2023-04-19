@@ -157,3 +157,27 @@ var deepdanbooruHandler haruka.RequestHandler = func(context *haruka.Context) {
 		"data":    NewDeepdanbooruTemplateList(dbrtask.Predictions),
 	})
 }
+
+type UploadImageByBase64RequestBody struct {
+	Base64    string `json:"base64"`
+	Filename  string `json:"filename"`
+	LibraryId int    `json:"libraryId"`
+}
+
+var uploadImageByBase64Handler haruka.RequestHandler = func(context *haruka.Context) {
+	var requestBody UploadImageByBase64RequestBody
+	err := context.ParseJson(&requestBody)
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	image, err := task.SaveImageByBase64(requestBody.Base64, requestBody.Filename, uint(requestBody.LibraryId))
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	context.JSON(haruka.JSON{
+		"success": true,
+		"data":    NewBaseImageTemplate(image),
+	})
+}

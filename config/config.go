@@ -38,6 +38,8 @@ type Config struct {
 	YouAuthConfig       *AuthConfig
 	YouAuthConfigPrefix string
 	EnableAnonymous     bool
+	PreprocessPath      string
+	ModelOutPath        string
 }
 
 func ReadConfig(provider *config.Provider) {
@@ -45,6 +47,8 @@ func ReadConfig(provider *config.Provider) {
 	configer.SetDefault("addr", ":8000")
 	configer.SetDefault("application", "YouPhoto Service")
 	configer.SetDefault("instance", "main")
+	configer.SetDefault("preprocess.outputpath", "./data/preprocess")
+	configer.SetDefault("lora.outputpath", "./data/model_out")
 	Instance = Config{
 		ThumbnailStorePath: configer.GetString("thumbnails.store_path"),
 		EnableAuth:         configer.GetBool("youplus.auth"),
@@ -69,4 +73,6 @@ func ReadConfig(provider *config.Provider) {
 			Instance.EnableAnonymous = configer.GetBool(fmt.Sprintf("auth.%s.enable", key))
 		}
 	}
+	Instance.PreprocessPath = configer.GetString("preprocess.outputpath")
+	Instance.ModelOutPath = configer.GetString("lora.outputpath")
 }

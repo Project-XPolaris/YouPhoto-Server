@@ -12,7 +12,7 @@ import (
 
 type RemoveLibraryTaskOutput struct {
 	Id      uint   `json:"id"`
-	Path    string `json:"path"`
+	Path    string `json:"Path"`
 	Name    string `json:"name"`
 	Total   int64  `json:"total"`
 	Current int64  `json:"current"`
@@ -138,8 +138,8 @@ func CreateRemoveLibraryTask(option RemoveLibraryTaskOption) (*RemoveLibraryTask
 	newTask.output = &output
 
 	newTask.Logger = plugins.DefaultYouLogPlugin.Logger.NewScope("Task").WithFields(youlog.Fields{
-		"path":      library.Path,
-		"libraryId": library.ID,
+		"Path":      library.Path,
+		"LibraryId": library.ID,
 	})
 
 	module.Task.Pool.AddTask(&newTask)
