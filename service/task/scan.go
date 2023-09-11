@@ -65,7 +65,7 @@ func (t *SyncLibraryTask) Start() error {
 		imagePath, err := filepath.Rel(t.library.Path, path)
 		if err != nil {
 			t.AbortFileError(path, err)
-			return nil
+			continue
 		}
 		createImageTask := NewCreateImageTask(&CreateImageTaskOption{
 			Uid:          t.Owner,
@@ -77,10 +77,7 @@ func (t *SyncLibraryTask) Start() error {
 		t.SubTaskList = append(t.SubTaskList, createImageTask)
 		err = task.RunTask(createImageTask)
 		if err != nil {
-
 			t.AbortFileError(path, err)
-			return nil
-
 		} else {
 			t.OnFileComplete()
 		}
