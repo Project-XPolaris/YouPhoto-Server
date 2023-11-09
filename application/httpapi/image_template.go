@@ -23,6 +23,7 @@ type BaseImageTemplate struct {
 	Sexy               float64                `json:"sexy"`
 	Porn               float64                `json:"porn"`
 	DeepdanbooruResult []DeepdanbooruTemplate `json:"deepdanbooruResult"`
+	Tag                []ImageTagTemplate     `json:"tag"`
 }
 
 func NewBaseImageTemplate(data *database.Image) BaseImageTemplate {
@@ -44,6 +45,7 @@ func NewBaseImageTemplate(data *database.Image) BaseImageTemplate {
 		Sexy:               data.Sexy,
 		Porn:               data.Porn,
 		DeepdanbooruResult: NewDeepdanbooruTemplateList(data.DeepdanbooruResult),
+		Tag:                NewImageTagTemplateList(data.Tags),
 	}
 }
 
@@ -165,6 +167,30 @@ func NewDeepdanbooruTemplateList(data []*database.DeepdanbooruResult) []Deepdanb
 	result := make([]DeepdanbooruTemplate, len(data))
 	for i, v := range data {
 		result[i] = NewDeepdanbooruTemplate(v)
+	}
+	return result
+}
+
+type ImageTagTemplate struct {
+	Tag     string  `json:"tag,omitempty"`
+	Source  string  `json:"source,omitempty"`
+	Rank    float64 `json:"rank,omitempty"`
+	ImageId uint    `json:"imageId,omitempty"`
+}
+
+func NewImageTagTemplate(data *database.Tag) ImageTagTemplate {
+	return ImageTagTemplate{
+		Tag:     data.Tag,
+		Source:  data.Source,
+		Rank:    data.Rank,
+		ImageId: data.ImageId,
+	}
+}
+
+func NewImageTagTemplateList(data []*database.Tag) []ImageTagTemplate {
+	result := make([]ImageTagTemplate, len(data))
+	for i, v := range data {
+		result[i] = NewImageTagTemplate(v)
 	}
 	return result
 }

@@ -31,6 +31,7 @@ type Image struct {
 	ImageColor         []*ImageColor
 	Prediction         []*Prediction
 	DeepdanbooruResult []*DeepdanbooruResult
+	Tags               []*Tag
 }
 
 func (i *Image) GetAvgHash() (uint64, error) {

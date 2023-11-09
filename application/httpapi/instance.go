@@ -23,6 +23,7 @@ func GetEngine() *haruka.Engine {
 	module.Auth.AuthMiddleware.RequestFilter = func(c *haruka.Context) bool {
 		NoAuthPath := []string{
 			"/oauth/youauth",
+			"/oauth/youauth/password",
 			"/oauth/youplus",
 			"/info",
 		}
@@ -40,8 +41,11 @@ func GetEngine() *haruka.Engine {
 	e.Router.POST("/library/{id:[0-9]+}/scan", scanLibraryHandler)
 	e.Router.DELETE("/library/{id:[0-9]+}", removeLibraryHandler)
 	e.Router.GET("/images", getImageListHandler)
+	e.Router.GET("/image/{id:[0-9]+}", getImageHandler)
 	e.Router.GET("/image/{id:[0-9]+}/thumbnail", getImageThumbnailHandler)
 	e.Router.GET("/image/{id:[0-9]+}/near", getNearImageHandler)
+	e.Router.GET("/image/{id:[0-9]+}/tagger", getImageTaggerHandler)
+	e.Router.GET("/tags", getImageTagListHandler)
 	e.Router.POST("/image/base64", uploadImageByBase64Handler)
 	e.Router.POST("/image/deepdanbooru", deepdanbooruHandler)
 	e.Router.POST("/color/match", getColorMatchHandler)

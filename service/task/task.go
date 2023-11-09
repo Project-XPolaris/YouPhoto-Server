@@ -16,6 +16,7 @@ const (
 	TypeDeepdanbooru        = "Deepdanbooru"
 	TypePreprocess          = "Preprocess"
 	TypeLoraTrain           = "LoraTrain"
+	TypeTagger              = "Tagger"
 )
 
 //const (

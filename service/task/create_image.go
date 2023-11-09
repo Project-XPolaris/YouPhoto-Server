@@ -27,6 +27,8 @@ type ProcessImageOption struct {
 	ForceNsfwCheck            bool `json:"forceNsfwCheck"`
 	EnableDeepdanbooruCheck   bool `json:"enableDeepdanbooruCheck"`
 	ForceDeepdanbooruCheck    bool `json:"forceDeepdanbooruCheck"`
+	EnableTagger              bool `json:"enableTagger"`
+	ForceTagger               bool `json:"forceTagger"`
 }
 type CreateImageTaskOption struct {
 	Uid          string
@@ -62,6 +64,7 @@ func (t *CreateImageTask) Start() error {
 			EnableDomainColor:         true,
 			EnableNsfwCheck:           true,
 			EnableDeepdanbooruCheck:   true,
+			EnableTagger:              true,
 		}
 	}
 	var image database.Image
@@ -97,7 +100,6 @@ func (t *CreateImageTask) Start() error {
 			ParentTaskId: t.GetId(),
 			FullPath:     fullPath,
 		})
-		t.SubTaskList = append(t.SubTaskList, generateThumbnailTask)
 		err = task.RunTask(generateThumbnailTask)
 		if err != nil {
 			return t.AbortError(err)
@@ -128,7 +130,6 @@ func (t *CreateImageTask) Start() error {
 			ParentTaskId: t.GetId(),
 			Path:         fullPath,
 		})
-		t.SubTaskList = append(t.SubTaskList, readImageTask)
 		err = task.RunTask(readImageTask)
 		if err != nil {
 			return t.AbortError(err)
@@ -199,7 +200,6 @@ func (t *CreateImageTask) Start() error {
 			Path:         fullPath,
 			ImageId:      image.ID,
 		})
-		t.SubTaskList = append(t.SubTaskList, imageClassifyTask)
 		err = task.RunTask(imageClassifyTask)
 		if err != nil {
 			log.Error(err)
@@ -214,7 +214,6 @@ func (t *CreateImageTask) Start() error {
 				Path:         fullPath,
 				Image:        image,
 			})
-			t.SubTaskList = append(t.SubTaskList, nsfwCheckTask)
 			err = task.RunTask(nsfwCheckTask)
 			if err != nil {
 				log.Error(err)
@@ -230,8 +229,23 @@ func (t *CreateImageTask) Start() error {
 					FullPath:     fullPath,
 					ImageId:      image.ID,
 				})
-			t.SubTaskList = append(t.SubTaskList, deepDanbooruCheckTask)
 			err = task.RunTask(deepDanbooruCheckTask)
+			if err != nil {
+				log.Error(err)
+			}
+		}
+	}()
+
+	go func() {
+		if ((isUpdate || option.ForceTagger) && plugins.DefaultImageTaggerPlugin.Enable) && option.EnableTagger {
+			taggerTask := NewTaggerTask(
+				&TaggerTaskOption{
+					Uid:          t.option.Uid,
+					ParentTaskId: t.GetId(),
+					FullPath:     fullPath,
+					ImageId:      image.ID,
+				})
+			err = task.RunTask(taggerTask)
 			if err != nil {
 				log.Error(err)
 			}

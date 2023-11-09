@@ -34,7 +34,22 @@ var getImageListHandler haruka.RequestHandler = func(context *haruka.Context) {
 	data := NewBaseImageTemplateList(imageList)
 	MakeListResponse(context, queryBuilder.Page, queryBuilder.PageSize, count, data)
 }
-
+var getImageHandler haruka.RequestHandler = func(context *haruka.Context) {
+	id, err := context.GetPathParameterAsInt("id")
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	image, err := service.GetImageById(uint(id), "ImageColor", "Prediction", "DeepdanbooruResult", "Tags")
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	context.JSON(haruka.JSON{
+		"success": true,
+		"data":    NewBaseImageTemplate(image),
+	})
+}
 var getImageThumbnailHandler haruka.RequestHandler = func(context *haruka.Context) {
 	id, err := context.GetPathParameterAsInt("id")
 	if err != nil {
@@ -74,10 +89,14 @@ var getImageRawHandler haruka.RequestHandler = func(context *haruka.Context) {
 		AbortError(context, err, http.StatusBadRequest)
 		return
 	}
+	isDownload := context.GetQueryString("download")
 	image, err := service.GetImageById(uint(id), "Library")
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return
+	}
+	if isDownload == "1" {
+		context.Writer.Header().Set("Content-Disposition", "attachment; filename="+image.Name)
 	}
 	http.ServeFile(context.Writer, context.Request, filepath.Join(image.Library.Path, image.Path))
 }
@@ -180,4 +199,40 @@ var uploadImageByBase64Handler haruka.RequestHandler = func(context *haruka.Cont
 		"success": true,
 		"data":    NewBaseImageTemplate(image),
 	})
+}
+
+var getImageTaggerHandler haruka.RequestHandler = func(context *haruka.Context) {
+	id, err := context.GetPathParameterAsInt("id")
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	result, err := service.TagImageById(uint(id))
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	context.JSON(haruka.JSON{
+		"success": true,
+		"data":    NewImageTagTemplateList(result),
+	})
+}
+
+var getImageTagListHandler haruka.RequestHandler = func(context *haruka.Context) {
+	queryBuilder := service.TagQueryBuilder{
+		Page:     context.Param["page"].(int),
+		PageSize: context.Param["pageSize"].(int),
+	}
+	err := context.BindingInput(&queryBuilder)
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	tagList, count, err := queryBuilder.Query()
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	data := NewImageTagTemplateList(tagList)
+	MakeListResponse(context, queryBuilder.Page, queryBuilder.PageSize, count, data)
 }

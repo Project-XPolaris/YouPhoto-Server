@@ -6,6 +6,8 @@ import (
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/utils"
+	"os"
+	"path"
 	"strings"
 )
 
@@ -34,6 +36,8 @@ type ImagesQueryBuilder struct {
 	NSFWMin        float64  `hsource:"query" hname:"nsfwMin"`
 	DbTag          []string `hsource:"query" hname:"dbTag"`
 	DbTagNot       []string `hsource:"query" hname:"dbTagNot"`
+	Tag            []string `hsource:"query" hname:"tag"`
+	TagNot         []string `hsource:"query" hname:"tagNot"`
 }
 
 func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
@@ -187,10 +191,31 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 
 		query = query.Joins("INNER JOIN (?) as dbrf on dbrf.image_id = images.id", dprFilterTable)
 	}
+	if q.Tag != nil || q.TagNot != nil {
+		tagFilterTable := database.Instance.
+			Table("tags").
+			Distinct("tags.image_id")
+		if q.Tag != nil {
+			orQuery := database.Instance
+			for _, tag := range q.Tag {
+				orQuery = orQuery.Or("tags.tag like ?", fmt.Sprintf("%%%s%%", tag))
+			}
+			tagFilterTable = tagFilterTable.Where(orQuery)
+		}
+		if q.TagNot != nil {
+			notTagQuery := database.Instance
+			for _, notTag := range q.TagNot {
+				notTagQuery = notTagQuery.Where("tags.tag not like ?", fmt.Sprintf("%%%s%%", notTag))
+			}
+			tagFilterTable = tagFilterTable.Where(notTagQuery)
+		}
+		query = query.Joins("INNER JOIN (?) as tf on tf.image_id = images.id", tagFilterTable)
+	}
 	err := query.
 		Preload("ImageColor").
 		Preload("Prediction").
 		Preload("DeepdanbooruResult").
+		Preload("Tags").
 		Offset((q.Page - 1) * q.PageSize).
 		Limit(q.PageSize).
 		Find(&images).
@@ -246,4 +271,93 @@ func DeleteImageById(id uint) error {
 	}
 
 	return nil
+}
+
+func TagImageById(id uint) ([]*database.Tag, error) {
+	image := database.Image{}
+	err := database.Instance.Where("id = ?", id).Preload("Tags").Preload("Library").First(&image).Error
+	if err != nil {
+		return nil, err
+	}
+	imagePath := path.Join(image.Library.Path, image.Path)
+	imageFile, err := os.Open(imagePath)
+	if err != nil {
+		return nil, err
+	}
+	if plugins.DefaultImageTaggerPlugin.Client == nil {
+		return nil, fmt.Errorf("no image tagger plugin")
+	}
+	result, err := plugins.DefaultImageTaggerPlugin.Client.TagImage(imageFile)
+	if err != nil {
+		return nil, err
+	}
+	tx := database.Instance.Begin()
+	oldTag := image.Tags
+	var tagsToRemove []*database.Tag
+	for _, tag := range oldTag {
+		for _, newTag := range result {
+			if tag.Tag == newTag.Tag && tag.Source == "auto" {
+				tagsToRemove = append(tagsToRemove, tag)
+			}
+		}
+	}
+	for _, tag := range tagsToRemove {
+		tx.Unscoped().Delete(tag)
+	}
+	newTags := make([]*database.Tag, 0)
+	for _, tag := range result {
+		newTag := database.Tag{
+			Tag:     tag.Tag,
+			Source:  "auto",
+			Rank:    tag.Rank,
+			ImageId: image.ID,
+		}
+		tx.Create(&newTag)
+		newTags = append(newTags, &newTag)
+	}
+	tx.Commit()
+	return newTags, nil
+}
+
+type TagQueryBuilder struct {
+	Page          int
+	PageSize      int
+	NameSearch    string `hsource:"query" hname:"nameSearch"`
+	SourceSearch  string `hsource:"query" hname:"sourceSearch"`
+	GroupBySource bool   `hsource:"query" hname:"groupBySource"`
+}
+
+func (q *TagQueryBuilder) Query() ([]*database.Tag, int64, error) {
+	var tags []*database.Tag
+	var count int64
+	query := database.Instance.Model(&database.Tag{}).Select("tag", "source")
+	if q.Page == 0 {
+		q.Page = 1
+	}
+	if q.PageSize == 0 {
+		q.PageSize = 10
+	}
+	if len(q.NameSearch) > 0 {
+		query = query.Where("tag like ?", fmt.Sprintf("%%%s%%", q.NameSearch))
+	}
+	if len(q.SourceSearch) > 0 {
+		query = query.Where("source like ?", fmt.Sprintf("%%%s%%", q.SourceSearch))
+	}
+	if !q.GroupBySource {
+		query = query.Group("tag")
+	} else {
+		query = query.Distinct("source")
+	}
+
+	err := query.
+		Offset((q.Page - 1) * q.PageSize).
+		Limit(q.PageSize).
+		Find(&tags).
+		Offset(-1).
+		Count(&count).
+		Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return tags, count, nil
 }
