@@ -38,6 +38,7 @@ type ImagesQueryBuilder struct {
 	DbTagNot       []string `hsource:"query" hname:"dbTagNot"`
 	Tag            []string `hsource:"query" hname:"tag"`
 	TagNot         []string `hsource:"query" hname:"tagNot"`
+	AlbumId        uint     `hsource:"query" hname:"albumId"`
 }
 
 func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
@@ -210,6 +211,10 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 			tagFilterTable = tagFilterTable.Where(notTagQuery)
 		}
 		query = query.Joins("INNER JOIN (?) as tf on tf.image_id = images.id", tagFilterTable)
+	}
+	if q.AlbumId != 0 {
+		query = query.Joins("INNER JOIN album_image on album_image.image_id = images.id").
+			Where("album_image.album_id = ?", q.AlbumId)
 	}
 	err := query.
 		Preload("ImageColor").

@@ -32,6 +32,7 @@ type Image struct {
 	Prediction         []*Prediction
 	DeepdanbooruResult []*DeepdanbooruResult
 	Tags               []*Tag
+	Albums             []*Album `gorm:"many2many:album_image;"`
 }
 
 func (i *Image) GetAvgHash() (uint64, error) {
