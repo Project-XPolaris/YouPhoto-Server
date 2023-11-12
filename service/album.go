@@ -16,7 +16,10 @@ func CreateAlbum(name string, uid string) (*database.Album, error) {
 		Name:    name,
 		OwnerId: user.ID,
 	}
-	err = tx.FirstOrCreate(album).Error
+	err = tx.FirstOrCreate(album, database.Album{
+		Name:    name,
+		OwnerId: user.ID,
+	}).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, err
