@@ -180,10 +180,7 @@ type ImageTagTemplate struct {
 
 func NewImageTagTemplate(data *database.Tag) ImageTagTemplate {
 	return ImageTagTemplate{
-		Tag:     data.Tag,
-		Source:  data.Source,
-		Rank:    data.Rank,
-		ImageId: data.ImageId,
+		Tag: data.Tag,
 	}
 }
 

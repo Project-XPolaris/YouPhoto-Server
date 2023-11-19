@@ -193,9 +193,14 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 		query = query.Joins("INNER JOIN (?) as dbrf on dbrf.image_id = images.id", dprFilterTable)
 	}
 	if q.Tag != nil || q.TagNot != nil {
+		//SELECT ti.image_id
+		//FROM `tags` t
+		//LEFT JOIN youphoto_dev4.tag_images ti ON t.id = ti.tag_id
+		//WHERE t.tag LIKE '%sawamura_spencer_eriri%' OR t.tag LIKE '%1girl%' -- Add more fuzzy search conditions here
+		//GROUP BY ti.image_id
+		//HAVING COUNT(DISTINCT t.tag) = 2
 		tagFilterTable := database.Instance.
-			Table("tags").
-			Distinct("tags.image_id")
+			Table("tags")
 		if q.Tag != nil {
 			orQuery := database.Instance
 			for _, tag := range q.Tag {
@@ -210,7 +215,8 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 			}
 			tagFilterTable = tagFilterTable.Where(notTagQuery)
 		}
-		query = query.Joins("INNER JOIN (?) as tf on tf.image_id = images.id", tagFilterTable)
+		tagFilterTable = tagFilterTable.Group("tag_images.image_id").Having("count(distinct tags.tag) = ?", len(q.Tag))
+		query = query.Where("images.id in (?)", tagFilterTable.Select("tag_images.image_id").Joins("INNER JOIN tag_images on tag_images.tag_id = tags.id"))
 	}
 	if q.AlbumId != 0 {
 		query = query.Joins("INNER JOIN album_image on album_image.image_id = images.id").
@@ -280,7 +286,7 @@ func DeleteImageById(id uint) error {
 
 func TagImageById(id uint) ([]*database.Tag, error) {
 	image := database.Image{}
-	err := database.Instance.Where("id = ?", id).Preload("Tags").Preload("Library").First(&image).Error
+	err := database.Instance.Where("id = ?", id).Preload("Library").First(&image).Error
 	if err != nil {
 		return nil, err
 	}
@@ -297,31 +303,41 @@ func TagImageById(id uint) ([]*database.Tag, error) {
 		return nil, err
 	}
 	tx := database.Instance.Begin()
-	oldTag := image.Tags
-	var tagsToRemove []*database.Tag
-	for _, tag := range oldTag {
-		for _, newTag := range result {
-			if tag.Tag == newTag.Tag && tag.Source == "auto" {
-				tagsToRemove = append(tagsToRemove, tag)
-			}
-		}
-	}
-	for _, tag := range tagsToRemove {
-		tx.Unscoped().Delete(tag)
-	}
-	newTags := make([]*database.Tag, 0)
+	var tagToAddList = make([]*database.Tag, 0)
 	for _, tag := range result {
-		newTag := database.Tag{
-			Tag:     tag.Tag,
-			Source:  "auto",
-			Rank:    tag.Rank,
-			ImageId: image.ID,
+		var tagToAdd *database.Tag
+		err = database.Instance.FirstOrCreate(&tagToAdd, database.Tag{
+			Tag: tag.Tag,
+		}).Error
+		if err != nil {
+			tx.Rollback()
+			return nil, err
 		}
-		tx.Create(&newTag)
-		newTags = append(newTags, &newTag)
+		tagToAddList = append(tagToAddList, tagToAdd)
 	}
+	err = tx.Model(&image).Association("Tags").Append(tagToAddList)
+	//oldTag := image.Tags
+	//var tagsToRemove []*database.Tag
+	//for _, tag := range oldTag {
+	//	for _, newTag := range result {
+	//		if tag.Tag == newTag.Tag {
+	//			tagsToRemove = append(tagsToRemove, tag)
+	//		}
+	//	}
+	//}
+	//for _, tag := range tagsToRemove {
+	//	tx.Unscoped().Delete(tag)
+	//}
+	//newTags := make([]*database.Tag, 0)
+	//for _, tag := range result {
+	//	newTag := database.Tag{
+	//		Tag: tag.Tag,
+	//	}
+	//	tx.Create(&newTag)
+	//	newTags = append(newTags, &newTag)
+	//}
 	tx.Commit()
-	return newTags, nil
+	return tagToAddList, nil
 }
 
 type TagQueryBuilder struct {
@@ -335,7 +351,7 @@ type TagQueryBuilder struct {
 func (q *TagQueryBuilder) Query() ([]*database.Tag, int64, error) {
 	var tags []*database.Tag
 	var count int64
-	query := database.Instance.Model(&database.Tag{}).Select("tag", "source")
+	query := database.Instance.Model(&database.Tag{})
 	if q.Page == 0 {
 		q.Page = 1
 	}
@@ -347,11 +363,6 @@ func (q *TagQueryBuilder) Query() ([]*database.Tag, int64, error) {
 	}
 	if len(q.SourceSearch) > 0 {
 		query = query.Where("source like ?", fmt.Sprintf("%%%s%%", q.SourceSearch))
-	}
-	if !q.GroupBySource {
-		query = query.Group("tag")
-	} else {
-		query = query.Distinct("source")
 	}
 
 	err := query.

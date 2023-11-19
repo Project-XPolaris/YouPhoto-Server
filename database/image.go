@@ -31,7 +31,7 @@ type Image struct {
 	ImageColor         []*ImageColor
 	Prediction         []*Prediction
 	DeepdanbooruResult []*DeepdanbooruResult
-	Tags               []*Tag
+	Tags               []*Tag   `gorm:"many2many:tag_images;"`
 	Albums             []*Album `gorm:"many2many:album_image;"`
 }
 

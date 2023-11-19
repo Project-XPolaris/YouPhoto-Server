@@ -7,7 +7,7 @@ import (
 
 var DefaultPlugin = &datasource.Plugin{
 	OnConnected: func(db *gorm.DB) {
-		Instance = db
-		Instance.AutoMigrate(&Library{}, &Image{}, &Oauth{}, &User{}, &ImageColor{}, &Prediction{}, &DeepdanbooruResult{}, SdwConfig{}, LoraConfig{}, &Tag{}, &Album{})
+		Instance = db.Debug()
+		Instance.AutoMigrate(&Library{}, &Image{}, &Oauth{}, &User{}, &ImageColor{}, &Prediction{}, &DeepdanbooruResult{}, SdwConfig{}, LoraConfig{}, &Tag{}, &Album{}, &TagImage{})
 	},
 }
