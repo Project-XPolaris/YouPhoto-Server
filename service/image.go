@@ -341,11 +341,9 @@ func TagImageById(id uint) ([]*database.Tag, error) {
 }
 
 type TagQueryBuilder struct {
-	Page          int
-	PageSize      int
-	NameSearch    string `hsource:"query" hname:"nameSearch"`
-	SourceSearch  string `hsource:"query" hname:"sourceSearch"`
-	GroupBySource bool   `hsource:"query" hname:"groupBySource"`
+	Page       int
+	PageSize   int
+	NameSearch string `hsource:"query" hname:"nameSearch"`
 }
 
 func (q *TagQueryBuilder) Query() ([]*database.Tag, int64, error) {
@@ -361,10 +359,6 @@ func (q *TagQueryBuilder) Query() ([]*database.Tag, int64, error) {
 	if len(q.NameSearch) > 0 {
 		query = query.Where("tag like ?", fmt.Sprintf("%%%s%%", q.NameSearch))
 	}
-	if len(q.SourceSearch) > 0 {
-		query = query.Where("source like ?", fmt.Sprintf("%%%s%%", q.SourceSearch))
-	}
-
 	err := query.
 		Offset((q.Page - 1) * q.PageSize).
 		Limit(q.PageSize).
