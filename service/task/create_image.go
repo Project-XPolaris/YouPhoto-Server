@@ -236,21 +236,19 @@ func (t *CreateImageTask) Start() error {
 		}
 	}()
 
-	go func() {
-		if ((isUpdate || option.ForceTagger) && plugins.DefaultImageTaggerPlugin.Enable) && option.EnableTagger {
-			taggerTask := NewTaggerTask(
-				&TaggerTaskOption{
-					Uid:          t.option.Uid,
-					ParentTaskId: t.GetId(),
-					FullPath:     fullPath,
-					ImageId:      image.ID,
-				})
-			err = task.RunTask(taggerTask)
-			if err != nil {
-				log.Error(err)
-			}
+	if ((isUpdate || option.ForceTagger) && plugins.DefaultImageTaggerPlugin.Enable) && option.EnableTagger {
+		taggerTask := NewTaggerTask(
+			&TaggerTaskOption{
+				Uid:          t.option.Uid,
+				ParentTaskId: t.GetId(),
+				FullPath:     fullPath,
+				ImageId:      image.ID,
+			})
+		err = task.RunTask(taggerTask)
+		if err != nil {
+			log.Error(err)
 		}
-	}()
+	}
 
 	err = database.Instance.Save(&image).Error
 	if err != nil {
