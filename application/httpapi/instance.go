@@ -26,6 +26,7 @@ func GetEngine() *haruka.Engine {
 			"/oauth/youauth/password",
 			"/oauth/youplus",
 			"/info",
+			"/state",
 		}
 		for _, path := range NoAuthPath {
 			if c.Pattern == path {
@@ -84,6 +85,8 @@ func GetEngine() *haruka.Engine {
 	e.Router.GET("/lora/config", getLoraConfigListHandler)
 	e.Router.DELETE("/lora/config", deleteLoraConfigHandler)
 	e.Router.GET("/lora/task/interrupt", loraInterruptHandler)
+	e.Router.GET("/tagger/models", getImageTaggerModelHandler)
+	e.Router.GET("/state", stateHandler)
 	module.Task.AddConverter(NewScanLibraryDetail)
 	module.Task.AddConverter(NewRemoveLibraryDetail)
 	return e

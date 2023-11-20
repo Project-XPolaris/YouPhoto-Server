@@ -207,7 +207,8 @@ var getImageTaggerHandler haruka.RequestHandler = func(context *haruka.Context) 
 		AbortError(context, err, http.StatusBadRequest)
 		return
 	}
-	result, err := service.TagImageById(uint(id))
+	model := context.GetQueryString("model")
+	result, err := service.TagImageById(uint(id), model)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return
@@ -235,4 +236,16 @@ var getImageTagListHandler haruka.RequestHandler = func(context *haruka.Context)
 	}
 	data := NewImageTagTemplateList(tagList)
 	MakeListResponse(context, queryBuilder.Page, queryBuilder.PageSize, count, data)
+}
+
+var getImageTaggerModelHandler haruka.RequestHandler = func(context *haruka.Context) {
+	models, err := service.GetTaggerList()
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	context.JSON(haruka.JSON{
+		"success": true,
+		"data":    models,
+	})
 }

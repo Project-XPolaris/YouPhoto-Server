@@ -10,6 +10,7 @@ type TaggerTaskOption struct {
 	ParentTaskId string
 	FullPath     string
 	ImageId      uint
+	TaggerModel  string
 }
 type TaggerTaskOutput struct {
 }
@@ -25,7 +26,7 @@ func (t *TaggerTask) Stop() error {
 }
 
 func (t *TaggerTask) Start() error {
-	_, err := service.TagImageById(t.option.ImageId)
+	_, err := service.TagImageById(t.option.ImageId, t.option.TaggerModel)
 	if err != nil {
 		return t.AbortError(err)
 	}

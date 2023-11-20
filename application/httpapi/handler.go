@@ -82,3 +82,16 @@ var readDirectoryHandler haruka.RequestHandler = func(context *haruka.Context) {
 			}, context)
 	}
 }
+
+var stateHandler haruka.RequestHandler = func(context *haruka.Context) {
+	context.JSON(haruka.JSON{
+		"success": true,
+		"data": haruka.JSON{
+			"nsfwEnable":                plugins.DefaultNSFWCheckPlugin.Enable,
+			"deepdanbooruEnable":        plugins.DefaultDeepDanbooruPlugin.Enable,
+			"imageClassificationEnable": plugins.DefaultImageClassifyPlugin.Enable,
+			"sdwEnable":                 sdw.DefaultSDWClient != nil,
+			"imageTaggerEnable":         plugins.DefaultImageTaggerPlugin.IsEnable(),
+		},
+	})
+}

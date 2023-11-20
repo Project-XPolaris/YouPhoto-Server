@@ -284,7 +284,7 @@ func DeleteImageById(id uint) error {
 	return nil
 }
 
-func TagImageById(id uint) ([]*database.Tag, error) {
+func TagImageById(id uint, taggerModel string) ([]*database.Tag, error) {
 	image := database.Image{}
 	err := database.Instance.Where("id = ?", id).Preload("Library").First(&image).Error
 	if err != nil {
@@ -298,7 +298,7 @@ func TagImageById(id uint) ([]*database.Tag, error) {
 	if plugins.DefaultImageTaggerPlugin.Client == nil {
 		return nil, fmt.Errorf("no image tagger plugin")
 	}
-	result, err := plugins.DefaultImageTaggerPlugin.Client.TagImage(imageFile)
+	result, err := plugins.DefaultImageTaggerPlugin.Client.TagImage(imageFile, taggerModel)
 	if err != nil {
 		return nil, err
 	}
@@ -370,4 +370,15 @@ func (q *TagQueryBuilder) Query() ([]*database.Tag, int64, error) {
 		return nil, 0, err
 	}
 	return tags, count, nil
+}
+
+func GetTaggerList() ([]string, error) {
+	if !plugins.DefaultImageTaggerPlugin.IsEnable() {
+		return nil, fmt.Errorf("no image tagger plugin")
+	}
+	state, err := plugins.DefaultImageTaggerPlugin.Client.GetTaggerState()
+	if err != nil {
+		return nil, err
+	}
+	return state.ModelList, nil
 }

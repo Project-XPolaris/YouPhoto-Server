@@ -19,16 +19,17 @@ import (
 )
 
 type ProcessImageOption struct {
-	EnableDomainColor         bool `json:"enableDomainColor"`
-	ForceRefreshDomainColor   bool `json:"forceRefreshDomainColor"`
-	EnableImageClassification bool `json:"enableImageClassification"`
-	ForceImageClassification  bool `json:"forceImageClassification"`
-	EnableNsfwCheck           bool `json:"enableNsfwCheck"`
-	ForceNsfwCheck            bool `json:"forceNsfwCheck"`
-	EnableDeepdanbooruCheck   bool `json:"enableDeepdanbooruCheck"`
-	ForceDeepdanbooruCheck    bool `json:"forceDeepdanbooruCheck"`
-	EnableTagger              bool `json:"enableTagger"`
-	ForceTagger               bool `json:"forceTagger"`
+	EnableDomainColor         bool   `json:"enableDomainColor"`
+	ForceRefreshDomainColor   bool   `json:"forceRefreshDomainColor"`
+	EnableImageClassification bool   `json:"enableImageClassification"`
+	ForceImageClassification  bool   `json:"forceImageClassification"`
+	EnableNsfwCheck           bool   `json:"enableNsfwCheck"`
+	ForceNsfwCheck            bool   `json:"forceNsfwCheck"`
+	EnableDeepdanbooruCheck   bool   `json:"enableDeepdanbooruCheck"`
+	ForceDeepdanbooruCheck    bool   `json:"forceDeepdanbooruCheck"`
+	EnableTagger              bool   `json:"enableTagger"`
+	ForceTagger               bool   `json:"forceTagger"`
+	TaggerModel               string `json:"taggerModel"`
 }
 type CreateImageTaskOption struct {
 	Uid          string
@@ -243,6 +244,7 @@ func (t *CreateImageTask) Start() error {
 				ParentTaskId: t.GetId(),
 				FullPath:     fullPath,
 				ImageId:      image.ID,
+				TaggerModel:  t.option.CreateOption.TaggerModel,
 			})
 		err = task.RunTask(taggerTask)
 		if err != nil {
