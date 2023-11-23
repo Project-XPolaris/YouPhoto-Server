@@ -249,3 +249,36 @@ var getImageTaggerModelHandler haruka.RequestHandler = func(context *haruka.Cont
 		"data":    models,
 	})
 }
+
+var uploadImageByFileHandler haruka.RequestHandler = func(context *haruka.Context) {
+	resp := context.Request
+	err := resp.ParseMultipartForm(32 << 20)
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	file, _, err := resp.FormFile("file")
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+	libraryId, err := context.GetQueryInt("libraryId")
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	filename := context.GetQueryString("filename")
+	if filename == "" {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+
+	savedImage, err := service.SaveUploadFile(filename, file, uint(libraryId))
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	imageTemplate := NewBaseImageTemplate(savedImage)
+	MakeSuccessResponse(imageTemplate, context)
+}

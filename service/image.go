@@ -6,9 +6,12 @@ import (
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/utils"
+	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
+	"time"
 )
 
 type ImagesQueryBuilder struct {
@@ -374,11 +377,99 @@ func (q *TagQueryBuilder) Query() ([]*database.Tag, int64, error) {
 
 func GetTaggerList() ([]string, error) {
 	if !plugins.DefaultImageTaggerPlugin.IsEnable() {
-		return nil, fmt.Errorf("no image tagger plugin")
+		return []string{}, nil
 	}
 	state, err := plugins.DefaultImageTaggerPlugin.Client.GetTaggerState()
 	if err != nil {
 		return nil, err
 	}
 	return state.ModelList, nil
+}
+func SaveUploadFile(filename string, file io.Reader, libraryId uint) (*database.Image, error) {
+	// save file
+	fileByteArr := make([]byte, 0)
+	for {
+		buf := make([]byte, 1024)
+		n, err := file.Read(buf)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		fileByteArr = append(fileByteArr, buf[:n]...)
+	}
+	// check if exists
+	library := database.Library{}
+	err := database.Instance.Where("id = ?", libraryId).First(&library).Error
+	if err != nil {
+		return nil, err
+	}
+	// check it has same md5 file in same library
+	md5, err := utils.GetMd5FromBytes(fileByteArr)
+	if err != nil {
+		return nil, err
+	}
+	var existImage database.Image
+	err = database.Instance.Model(database.Image{}).
+		Where("md5 = ?", md5).
+		Where("library_id = ?", libraryId).
+		Where("name = ?", filename).
+		Find(&existImage).Error
+
+	if err != nil {
+		return nil, err
+	}
+	// if exists, return nil
+	if existImage.ID != 0 {
+		return &existImage, err
+	}
+
+	// save file
+	fullPath := filepath.Join(library.Path, filename)
+	saveFileName := filename
+	if utils.CheckFileExist(fullPath) {
+		saveFileName = fmt.Sprintf("%s_%d%s", strings.TrimSuffix(filename, filepath.Ext(filename)), time.Now().Unix(), filepath.Ext(filename))
+	}
+	// saveFile
+	savePath := filepath.Join(library.Path, saveFileName)
+	err = os.WriteFile(savePath, fileByteArr, 0644)
+	if err != nil {
+		// handle error
+	}
+
+	// save image
+	image := database.Image{
+		Name:      filename,
+		Path:      saveFileName,
+		LibraryId: libraryId,
+		Md5:       md5,
+	}
+
+	width, height, _ := utils.GetImageDimension(savePath)
+	image.Width = uint(width)
+	image.Height = uint(height)
+	// read lastModify
+	fileStat, err := os.Stat(savePath)
+	if err == nil {
+		image.LastModify = fileStat.ModTime()
+		image.Size = uint(fileStat.Size())
+	}
+
+	//sourceImage, err := GetImageFromFilePath(savePath)
+	//if err != nil {
+	//	return err
+	//}
+	// generate thumbnail
+	thumbnail, err := GenerateThumbnail(savePath)
+	if err != nil {
+		return nil, err
+	}
+	image.Thumbnail = thumbnail
+
+	err = database.Instance.Create(&image).Error
+	if err != nil {
+		return nil, err
+	}
+	return &image, nil
 }
