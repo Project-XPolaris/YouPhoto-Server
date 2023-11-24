@@ -226,10 +226,6 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 			Where("album_image.album_id = ?", q.AlbumId)
 	}
 	err := query.
-		Preload("ImageColor").
-		Preload("Prediction").
-		Preload("DeepdanbooruResult").
-		Preload("Tags").
 		Offset((q.Page - 1) * q.PageSize).
 		Limit(q.PageSize).
 		Find(&images).
