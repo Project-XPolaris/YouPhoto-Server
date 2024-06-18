@@ -3,9 +3,11 @@ package httpapi
 import (
 	"bytes"
 	context2 "context"
+	"errors"
 	"github.com/allentom/haruka"
 	task2 "github.com/allentom/harukap/module/task"
 	"github.com/projectxpolaris/youphoto/config"
+	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/service"
 	"github.com/projectxpolaris/youphoto/service/task"
@@ -24,6 +26,16 @@ var getImageListHandler haruka.RequestHandler = func(context *haruka.Context) {
 	err := context.BindingInput(&queryBuilder)
 	if err != nil {
 		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	md5List := context.GetQueryStrings("md5")
+	if len(md5List) > 0 {
+		queryBuilder.Md5 = md5List
+	}
+	if claims, ok := context.Param["claim"]; ok {
+		queryBuilder.UserId = claims.(*database.User).ID
+	} else {
+		AbortError(context, errors.New("need auth"), http.StatusBadRequest)
 		return
 	}
 	imageList, count, err := queryBuilder.Query()
@@ -251,34 +263,24 @@ var getImageTaggerModelHandler haruka.RequestHandler = func(context *haruka.Cont
 }
 
 var uploadImageByFileHandler haruka.RequestHandler = func(context *haruka.Context) {
-	resp := context.Request
-	err := resp.ParseMultipartForm(32 << 20)
+	file, _, err := context.Request.FormFile("file")
 	if err != nil {
 		AbortError(context, err, http.StatusBadRequest)
 		return
 	}
-	file, _, err := resp.FormFile("file")
-	if err != nil {
-		AbortError(context, err, http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
 	libraryId, err := context.GetQueryInt("libraryId")
 	if err != nil {
 		AbortError(context, err, http.StatusBadRequest)
 		return
 	}
 	filename := context.GetQueryString("filename")
-	if filename == "" {
-		AbortError(context, err, http.StatusBadRequest)
-		return
-	}
-
-	savedImage, err := service.SaveUploadFile(filename, file, uint(libraryId))
+	image, err := task.SaveImageByFile(file, filename, uint(libraryId))
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return
 	}
-	imageTemplate := NewBaseImageTemplate(savedImage)
-	MakeSuccessResponse(imageTemplate, context)
+	context.JSON(haruka.JSON{
+		"success": true,
+		"data":    NewBaseImageTemplate(image),
+	})
 }

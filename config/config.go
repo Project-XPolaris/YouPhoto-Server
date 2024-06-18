@@ -40,6 +40,7 @@ type Config struct {
 	EnableAnonymous     bool
 	PreprocessPath      string
 	ModelOutPath        string
+	PrivateLibraryPath  string
 }
 
 func ReadConfig(provider *config.Provider) {
@@ -49,12 +50,14 @@ func ReadConfig(provider *config.Provider) {
 	configer.SetDefault("instance", "main")
 	configer.SetDefault("preprocess.outputpath", "./data/preprocess")
 	configer.SetDefault("lora.outputpath", "./data/model_out")
+	configer.SetDefault("storage.private_library", "./private_local")
 	Instance = Config{
 		ThumbnailStorePath: configer.GetString("thumbnails.store_path"),
 		EnableAuth:         configer.GetBool("youplus.auth"),
 		Datasource:         configer.GetString("datasource"),
 		YouPlusPathEnable:  configer.GetBool("youplus.enablepath"),
 		Auths:              make([]*AuthConfig, 0),
+		PrivateLibraryPath: configer.GetString("storage.private_library"),
 	}
 	// read auth config
 	rawAuth := configer.GetStringMap("auth")

@@ -3,6 +3,7 @@ package plugins
 import (
 	"fmt"
 	"github.com/allentom/harukap"
+	"github.com/projectxpolaris/youphoto/config"
 	"github.com/projectxpolaris/youphoto/service/lora"
 	"github.com/projectxpolaris/youphoto/service/sdw"
 	"os"
@@ -66,6 +67,18 @@ func (p *InitPlugin) OnInit(e *harukap.HarukaAppEngine) error {
 		}
 	} else {
 		logger.Info("lora disabled")
+	}
+
+	// init private library
+	logger.Info("private library init")
+	privateLibrary := config.Instance.PrivateLibraryPath
+	stat, _ = os.Stat(privateLibrary)
+	if stat == nil {
+		logger.Warn("private library not exist,will create")
+		err := os.MkdirAll(privateLibrary, os.ModePerm)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

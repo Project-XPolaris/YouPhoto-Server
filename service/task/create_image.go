@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	image2 "image"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -306,6 +307,40 @@ func SaveImageByBase64(rawImage string, filename string, libraryId uint) (*datab
 		Path:      filename,
 	})
 
+	err = createImageTask.Start()
+	if err != nil {
+		return nil, err
+	}
+	return createImageTask.Image, nil
+}
+
+func SaveImageByFile(file io.Reader, filename string, libraryId uint) (*database.Image, error) {
+	var library database.Library
+	err := database.Instance.Where("id = ?", libraryId).First(&library).Error
+	if err != nil {
+		return nil, err
+	}
+	savePath := filepath.Join(library.Path, filename)
+
+	// Create a file in the savePath
+	outFile, err := os.Create(savePath)
+	if err != nil {
+		return nil, err
+	}
+	defer outFile.Close()
+
+	// Write the content from the provided file to the new file
+	_, err = io.Copy(outFile, file)
+	if err != nil {
+		return nil, err
+	}
+	// save image to database
+	createImageTask := NewCreateImageTask(&CreateImageTaskOption{
+		Uid:       "-1",
+		LibraryId: libraryId,
+		FullPath:  savePath,
+		Path:      filename,
+	})
 	err = createImageTask.Start()
 	if err != nil {
 		return nil, err

@@ -1,21 +1,50 @@
 package service
 
 import (
+	"errors"
+	"github.com/projectxpolaris/youphoto/config"
 	"github.com/projectxpolaris/youphoto/database"
+	"github.com/projectxpolaris/youphoto/utils"
 	"gorm.io/gorm"
+	"os"
+	path2 "path"
 )
 
-func CreateLibrary(name string, path string, userId uint) (*database.Library, error) {
-	library := &database.Library{
-		Name:   name,
-		Path:   path,
-		Public: userId == 0,
+func CreateLibrary(name string, path string, userId uint, isPublic bool) (*database.Library, error) {
+	libraryPath := path
+	if len(libraryPath) == 0 {
+		libraryPath = path2.Join(config.Instance.PrivateLibraryPath, name)
+		isPublic = false
+		if !utils.CheckFileExist(libraryPath) {
+			err := os.Mkdir(libraryPath, os.ModePerm)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
-	err := database.Instance.Create(&library).Error
+	if !utils.CheckFileExist(libraryPath) {
+		return nil, errors.New("path not exist")
+	}
+	// check library is exist
+	var count int64
+	err := database.Instance.Model(&database.Library{}).Where("path = ?", libraryPath).Count(&count).Error
 	if err != nil {
 		return nil, err
 	}
-	if userId != 0 {
+	if count > 1 {
+		return nil, errors.New("library is exist")
+	}
+
+	library := &database.Library{
+		Name:   name,
+		Path:   libraryPath,
+		Public: isPublic,
+	}
+	err = database.Instance.Create(&library).Error
+	if err != nil {
+		return nil, err
+	}
+	if userId != 0 && !isPublic {
 		err = database.Instance.Model(&library).Association("Users").Append(&database.User{
 			Model: gorm.Model{ID: userId},
 		})

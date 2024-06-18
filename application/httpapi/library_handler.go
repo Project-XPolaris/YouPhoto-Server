@@ -24,15 +24,13 @@ var createLibraryHandler haruka.RequestHandler = func(context *haruka.Context) {
 		return
 	}
 	var uid uint = 0
-	if requestBody.Private {
-		if claims, ok := context.Param["claim"]; ok {
-			uid = claims.(*database.User).ID
-		} else {
-			AbortError(context, errors.New("need auth"), http.StatusBadRequest)
-			return
-		}
+	if claims, ok := context.Param["claim"]; ok {
+		uid = claims.(*database.User).ID
+	} else {
+		AbortError(context, errors.New("need auth"), http.StatusBadRequest)
+		return
 	}
-	library, err := service.CreateLibrary(requestBody.Name, requestBody.Path, uid)
+	library, err := service.CreateLibrary(requestBody.Name, requestBody.Path, uid, !requestBody.Private)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return

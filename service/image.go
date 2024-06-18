@@ -39,9 +39,8 @@ type ImagesQueryBuilder struct {
 	NSFWMin        float64  `hsource:"query" hname:"nsfwMin"`
 	DbTag          []string `hsource:"query" hname:"dbTag"`
 	DbTagNot       []string `hsource:"query" hname:"dbTagNot"`
-	Tag            []string `hsource:"query" hname:"tag"`
-	TagNot         []string `hsource:"query" hname:"tagNot"`
-	AlbumId        uint     `hsource:"query" hname:"albumId"`
+	Md5            []string `hsource:"query" hname:"md5"`
+	Orient         string   `hsource:"query" hname:"orient"`
 }
 
 func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
@@ -73,6 +72,20 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 	}
 	if q.MaxHeight > 0 {
 		query = query.Where("images.height <= ?", q.MaxHeight)
+	}
+	if len(q.Md5) > 0 {
+		query = query.Where("images.md5 IN ?", q.Md5)
+	}
+	orientDelta := 200
+	switch q.Orient {
+	case "square":
+		query = query.Where("COALESCE(images.width, 0) <= COALESCE(images.height, 0) + ? AND COALESCE(images.height, 0) <= COALESCE(images.width, 0) + ?", orientDelta, orientDelta)
+	case "portrait":
+		query = query.Where("COALESCE(images.width, 0) < COALESCE(images.height, 0) - 200")
+	case "landscape":
+		query = query.Where("COALESCE(images.width, 0) - 200 > COALESCE(images.height, 0)")
+	default:
+		break
 	}
 	colorTablesQueryStringParts := make([]string, 0)
 	colorSubQueryTable := make([]interface{}, 0)
@@ -194,36 +207,6 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 		}
 
 		query = query.Joins("INNER JOIN (?) as dbrf on dbrf.image_id = images.id", dprFilterTable)
-	}
-	if q.Tag != nil || q.TagNot != nil {
-		//SELECT ti.image_id
-		//FROM `tags` t
-		//LEFT JOIN youphoto_dev4.tag_images ti ON t.id = ti.tag_id
-		//WHERE t.tag LIKE '%sawamura_spencer_eriri%' OR t.tag LIKE '%1girl%' -- Add more fuzzy search conditions here
-		//GROUP BY ti.image_id
-		//HAVING COUNT(DISTINCT t.tag) = 2
-		tagFilterTable := database.Instance.
-			Table("tags")
-		if q.Tag != nil {
-			orQuery := database.Instance
-			for _, tag := range q.Tag {
-				orQuery = orQuery.Or("tags.tag like ?", fmt.Sprintf("%%%s%%", tag))
-			}
-			tagFilterTable = tagFilterTable.Where(orQuery)
-		}
-		if q.TagNot != nil {
-			notTagQuery := database.Instance
-			for _, notTag := range q.TagNot {
-				notTagQuery = notTagQuery.Where("tags.tag not like ?", fmt.Sprintf("%%%s%%", notTag))
-			}
-			tagFilterTable = tagFilterTable.Where(notTagQuery)
-		}
-		tagFilterTable = tagFilterTable.Group("tag_images.image_id").Having("count(distinct tags.tag) = ?", len(q.Tag))
-		query = query.Where("images.id in (?)", tagFilterTable.Select("tag_images.image_id").Joins("INNER JOIN tag_images on tag_images.tag_id = tags.id"))
-	}
-	if q.AlbumId != 0 {
-		query = query.Joins("INNER JOIN album_image on album_image.image_id = images.id").
-			Where("album_image.album_id = ?", q.AlbumId)
 	}
 	err := query.
 		Offset((q.Page - 1) * q.PageSize).
