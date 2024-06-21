@@ -93,9 +93,16 @@ func (q *LibraryQueryBuilder) Query() ([]*database.Library, int64, error) {
 func GetLibraryWithUser(id uint, userId uint) (*database.Library, error) {
 	library := &database.Library{}
 	err := database.Instance.
-		Joins("LEFT JOIN library_users lu on libraries.id = lu.library_id").
-		Where("lu.user_id = ?", userId).
-		Or("public = ?", true).
-		First(library, id).Error
+		Where("id = ?", id).
+		Preload("Users", "id = ?", userId).
+		First(library).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, user := range library.Users {
+		if user.ID == userId {
+			return library, nil
+		}
+	}
 	return library, err
 }

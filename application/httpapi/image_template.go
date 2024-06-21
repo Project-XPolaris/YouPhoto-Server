@@ -24,6 +24,12 @@ type BaseImageTemplate struct {
 	Porn               float64                `json:"porn"`
 	DeepdanbooruResult []DeepdanbooruTemplate `json:"deepdanbooruResult"`
 	Tag                []ImageTagTemplate     `json:"tag"`
+	Lat                float64                `json:"lat,omitempty"`
+	Lng                float64                `json:"lng,omitempty"`
+	Fnumber            float64                `json:"fnumber,omitempty"`
+	FocalLength        float64                `json:"focalLength,omitempty"`
+	ISO                float64                `json:"iso,omitempty"`
+	Time               string                 `json:"time,omitempty"`
 }
 
 func NewBaseImageTemplate(data *database.Image) BaseImageTemplate {
@@ -46,6 +52,12 @@ func NewBaseImageTemplate(data *database.Image) BaseImageTemplate {
 		Porn:               data.Porn,
 		DeepdanbooruResult: NewDeepdanbooruTemplateList(data.DeepdanbooruResult),
 		Tag:                NewImageTagTemplateList(data.Tags),
+		Lat:                data.Lat,
+		Lng:                data.Lng,
+		Fnumber:            data.Fnumber,
+		FocalLength:        data.FocalLength,
+		ISO:                data.ISO,
+		Time:               data.Time.Format(TimeFormat),
 	}
 }
 

@@ -87,6 +87,8 @@ func AddImageToAlbum(albumId uint, uid string, imageId ...uint) error {
 		tx.Rollback()
 		return err
 	}
+	coverImage := images[0]
+	err = tx.Model(album).Update("cover_id", coverImage.ID).Error
 	tx.Commit()
 	return nil
 }
@@ -115,6 +117,18 @@ func RemoveImageFromAlbum(albumId uint, uid string, imageId ...uint) error {
 	if err != nil {
 		tx.Rollback()
 		return err
+	}
+	// check if need to update cover
+	if album.CoverId == images[0].ID {
+		var newCover *database.Image
+		err = tx.Model(album).Association("Images").Find(&newCover)
+		if err != nil {
+			tx.Rollback()
+		}
+		err = tx.Model(album).Update("cover_id", newCover.ID).Error
+		if err != nil {
+			tx.Rollback()
+		}
 	}
 	tx.Commit()
 	return nil

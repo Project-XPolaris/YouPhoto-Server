@@ -75,9 +75,16 @@ var scanLibraryHandler haruka.RequestHandler = func(context *haruka.Context) {
 		AbortError(context, err, http.StatusBadRequest)
 		return
 	}
+
 	option := task.CreateScanTaskOption{
 		LibraryId:     uint(id),
 		ProcessOption: &precessOption,
+	}
+	if claims, ok := context.Param["claim"]; ok {
+		option.UserId = claims.(*database.User).ID
+	} else {
+		AbortError(context, errors.New("need auth"), http.StatusBadRequest)
+		return
 	}
 	task, err := task.CreateSyncLibraryTask(option)
 	if err != nil {

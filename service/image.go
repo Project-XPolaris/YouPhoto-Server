@@ -41,6 +41,9 @@ type ImagesQueryBuilder struct {
 	DbTagNot       []string `hsource:"query" hname:"dbTagNot"`
 	Md5            []string `hsource:"query" hname:"md5"`
 	Orient         string   `hsource:"query" hname:"orient"`
+	AlbumId        uint     `hsource:"query" hname:"albumId"`
+	Tag            []string `hsource:"query" hname:"tag"`
+	TagNot         []string `hsource:"query" hname:"tagNot"`
 }
 
 func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
@@ -86,6 +89,30 @@ func (q *ImagesQueryBuilder) Query() ([]*database.Image, int64, error) {
 		query = query.Where("COALESCE(images.width, 0) - 200 > COALESCE(images.height, 0)")
 	default:
 		break
+	}
+	if q.Tag != nil || q.TagNot != nil {
+		tagFilterTable := database.Instance.
+			Table("tags")
+		if q.Tag != nil {
+			orQuery := database.Instance
+			for _, tag := range q.Tag {
+				orQuery = orQuery.Or("tags.tag like ?", fmt.Sprintf("%%%s%%", tag))
+			}
+			tagFilterTable = tagFilterTable.Where(orQuery)
+		}
+		if q.TagNot != nil {
+			notTagQuery := database.Instance
+			for _, notTag := range q.TagNot {
+				notTagQuery = notTagQuery.Where("tags.tag not like ?", fmt.Sprintf("%%%s%%", notTag))
+			}
+			tagFilterTable = tagFilterTable.Where(notTagQuery)
+		}
+		tagFilterTable = tagFilterTable.Group("tag_images.image_id").Having("count(distinct tags.tag) = ?", len(q.Tag))
+		query = query.Where("images.id in (?)", tagFilterTable.Select("tag_images.image_id").Joins("INNER JOIN tag_images on tag_images.tag_id = tags.id"))
+	}
+	if q.AlbumId != 0 {
+		query = query.Joins("INNER JOIN album_image on album_image.image_id = images.id").
+			Where("album_image.album_id = ?", q.AlbumId)
 	}
 	colorTablesQueryStringParts := make([]string, 0)
 	colorSubQueryTable := make([]interface{}, 0)

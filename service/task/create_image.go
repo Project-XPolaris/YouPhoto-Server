@@ -9,10 +9,13 @@ import (
 	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/service"
 	"github.com/projectxpolaris/youphoto/utils"
+	"github.com/rwcarlsen/goexif/exif"
+	"github.com/rwcarlsen/goexif/mknote"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	image2 "image"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -121,6 +124,62 @@ func (t *CreateImageTask) Start() error {
 		image.LastModify = fileStat.ModTime()
 		image.Size = uint(fileStat.Size())
 	}
+	// read exif
+	file, err := os.Open(fullPath)
+	if err != nil {
+		return t.AbortError(err)
+	}
+	exif.RegisterParsers(mknote.All...)
+	x, err := exif.Decode(file)
+	if err == nil {
+		lat, long, err := x.LatLong()
+		if err == nil && lat != 0 && long != 0 && !math.IsNaN(lat) && !math.IsNaN(long) {
+
+			image.Lat = lat
+			image.Lng = long
+			fmt.Println(lat, long)
+		}
+		orientation, err := x.Get(exif.Orientation)
+		if err == nil {
+			print(orientation.String())
+		}
+		fNumber, err := x.Get(exif.FNumber)
+		if err == nil && fNumber != nil {
+			fnumberRat, err := fNumber.Rat(0)
+			if err == nil {
+				ratVal, _ := fnumberRat.Float64()
+				image.Fnumber = ratVal
+			}
+		}
+		focalLength, err := x.Get(exif.FocalLength)
+		if err == nil && focalLength != nil {
+			focalLengthRat, err := focalLength.Rat(0)
+			if err == nil {
+				ratVal, _ := focalLengthRat.Float64()
+				image.FocalLength = ratVal
+			}
+		}
+		iso, err := x.Get(exif.ISOSpeedRatings)
+		if err == nil && iso != nil {
+			isoRat, err := iso.Int(0)
+			if err == nil {
+				image.ISO = float64(isoRat)
+			}
+		}
+
+		photoTimeStr, err := x.Get(exif.DateTime)
+		if err == nil {
+			rawValue, _ := photoTimeStr.StringVal()
+			if rawValue != "" {
+				photoTime, err := time.Parse("2006:01:02 15:04:05", rawValue)
+				if err == nil {
+					image.Time = photoTime
+
+				}
+			}
+		}
+	}
+
 	var source image2.Image
 	needGenerateAvgHash := isUpdate || len(image.AvgHash) == 0
 	needReadDomainColor := (isUpdate || len(image.Domain) == 0 || option.ForceRefreshDomainColor) && option.EnableDomainColor

@@ -33,6 +33,12 @@ type Image struct {
 	DeepdanbooruResult []*DeepdanbooruResult
 	Tags               []*Tag   `gorm:"many2many:tag_images;"`
 	Albums             []*Album `gorm:"many2many:album_image;"`
+	Lat                float64
+	Lng                float64
+	Fnumber            float64
+	FocalLength        float64
+	ISO                float64
+	Time               time.Time
 }
 
 func (i *Image) GetAvgHash() (uint64, error) {
