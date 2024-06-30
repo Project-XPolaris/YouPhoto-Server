@@ -3,6 +3,7 @@ package task
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"github.com/allentom/harukap/module/task"
 	"github.com/projectxpolaris/youphoto/database"
@@ -373,7 +374,14 @@ func SaveImageByBase64(rawImage string, filename string, libraryId uint) (*datab
 	return createImageTask.Image, nil
 }
 
-func SaveImageByFile(file io.Reader, filename string, libraryId uint) (*database.Image, error) {
+func SaveImageByFile(
+	file io.Reader,
+	filename string,
+	libraryId uint,
+	albumName string,
+	albumId uint,
+	uid uint,
+) (*database.Image, error) {
 	var library database.Library
 	err := database.Instance.Where("id = ?", libraryId).First(&library).Error
 	if err != nil {
@@ -399,10 +407,50 @@ func SaveImageByFile(file io.Reader, filename string, libraryId uint) (*database
 		LibraryId: libraryId,
 		FullPath:  savePath,
 		Path:      filename,
+		CreateOption: &ProcessImageOption{
+			EnableImageClassification: false,
+			EnableDeepdanbooruCheck:   false,
+			EnableTagger:              false,
+			EnableDomainColor:         true,
+			EnableNsfwCheck:           false,
+		},
 	})
 	err = createImageTask.Start()
 	if err != nil {
 		return nil, err
+	}
+	if albumId != 0 {
+		err = database.Instance.Model(&database.Album{}).Where("id = ?", albumId).Association("Images").Append(createImageTask.Image)
+		if err != nil {
+			return nil, err
+		}
+	} else if albumName != "" {
+		var album database.Album
+		err = database.Instance.Where("name = ?", albumName).Where("owner_id = ?", uid).First(&album).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+		if album.ID == 0 {
+			album = database.Album{
+				Name:    albumName,
+				OwnerId: uid,
+				CoverId: createImageTask.Image.ID,
+			}
+			err = database.Instance.Create(&album).Error
+			if err != nil {
+				return nil, err
+			}
+		}
+		err = database.Instance.Model(&album).Association("Images").Append(createImageTask.Image)
+		if err != nil {
+			return nil, err
+		}
+		err = database.Instance.Model(&album).Association("Users").Append(&database.User{
+			Model: gorm.Model{ID: uid},
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 	return createImageTask.Image, nil
 }

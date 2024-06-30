@@ -116,13 +116,14 @@ var removeAlbumHandler haruka.RequestHandler = func(context *haruka.Context) {
 		AbortError(context, err, http.StatusBadRequest)
 		return
 	}
+	deleteImage := context.GetQueryString("deleteImage")
 	if id == 0 {
 		AbortError(context, errors.New("need albumId"), http.StatusBadRequest)
 		return
 	}
 	if claims, ok := context.Param["claim"]; ok {
 		uid := claims.(*database.User).Uid
-		err := service.RemoveAlbum(uint(id), uid)
+		err := service.RemoveAlbum(uint(id), uid, len(deleteImage) > 0)
 		if err != nil {
 			AbortError(context, err, http.StatusInternalServerError)
 			return

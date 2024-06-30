@@ -47,6 +47,7 @@ func GetEngine() *haruka.Engine {
 	e.Router.GET("/image/{id:[0-9]+}/near", getNearImageHandler)
 	e.Router.GET("/image/{id:[0-9]+}/tagger", getImageTaggerHandler)
 	e.Router.GET("/image/{id:[0-9]+}/album", getAlbumDetailHandler)
+	e.Router.DELETE("/images", deleteImageByIdsHandler)
 	e.Router.POST("/image/upload", uploadImageByFileHandler)
 	e.Router.POST("/album/{id:[0-9]+}/image", addImageToAlbumHandler)
 	e.Router.DELETE("/album/{id:[0-9]+}/image", removeImageFromAlbumHandler)

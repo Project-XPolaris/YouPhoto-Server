@@ -33,7 +33,7 @@ func CreateAlbum(name string, uid string) (*database.Album, error) {
 	return album, nil
 }
 
-func RemoveAlbum(albumId uint, uid string) error {
+func RemoveAlbum(albumId uint, uid string, deleteImage bool) error {
 	tx := database.Instance.Begin()
 	album := &database.Album{}
 	err := tx.Preload("Owner").First(album, albumId).Error
@@ -43,10 +43,21 @@ func RemoveAlbum(albumId uint, uid string) error {
 	if album.Owner.Uid != uid {
 		return errors.New("permission denied")
 	}
+	images := make([]*database.Image, 0)
+	err = tx.Model(album).Association("Images").Find(&images)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
 	err = tx.Model(album).Association("Images").Clear()
 	if err != nil {
 		tx.Rollback()
 		return err
+	}
+	if deleteImage {
+		for _, image := range images {
+			DeleteImageById(image.ID, deleteImage)
+		}
 	}
 	err = tx.Model(album).Association("Users").Clear()
 	if err != nil {

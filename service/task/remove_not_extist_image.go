@@ -51,7 +51,7 @@ func (t *RemoveNotExistImageTask) Start() error {
 		err = database.Instance.Transaction(func(tx *gorm.DB) error {
 			for _, image := range images {
 				if !utils.CheckFileExist(filepath.Join(library.Path, image.Path)) {
-					err = service.DeleteImageById(image.ID)
+					err = service.DeleteImageById(image.ID, false)
 					if err != nil {
 						return err
 					}

@@ -15,6 +15,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -273,8 +274,18 @@ var uploadImageByFileHandler haruka.RequestHandler = func(context *haruka.Contex
 		AbortError(context, err, http.StatusBadRequest)
 		return
 	}
+	var uid uint = 0
+	if claims, ok := context.Param["claim"]; ok {
+		uid = claims.(*database.User).ID
+	} else {
+		AbortError(context, errors.New("need auth"), http.StatusBadRequest)
+		return
+	}
+	albumName := context.GetQueryString("albumName")
+	albumId, _ := context.GetQueryInt("albumId")
+
 	filename := context.GetQueryString("filename")
-	image, err := task.SaveImageByFile(file, filename, uint(libraryId))
+	image, err := task.SaveImageByFile(file, filename, uint(libraryId), albumName, uint(albumId), uid)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return
@@ -282,5 +293,27 @@ var uploadImageByFileHandler haruka.RequestHandler = func(context *haruka.Contex
 	context.JSON(haruka.JSON{
 		"success": true,
 		"data":    NewBaseImageTemplate(image),
+	})
+}
+
+var deleteImageByIdsHandler haruka.RequestHandler = func(context *haruka.Context) {
+	rawIds := context.GetQueryStrings("ids")
+	rawDeleteImage := context.GetQueryString("deleteImage")
+	ids := make([]uint, 0)
+	for _, id := range rawIds {
+		idInt, err := strconv.ParseUint(id, 10, 64)
+		if err != nil {
+			AbortError(context, err, http.StatusBadRequest)
+			return
+		}
+		ids = append(ids, uint(idInt))
+	}
+	err := service.DeleteImageByIds(ids, len(rawDeleteImage) > 0)
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	context.JSON(haruka.JSON{
+		"success": true,
 	})
 }

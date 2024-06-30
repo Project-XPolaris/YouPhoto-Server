@@ -261,9 +261,9 @@ func GetImageById(id uint, rels ...string) (*database.Image, error) {
 	return &image, nil
 }
 
-func DeleteImageById(id uint) error {
+func DeleteImageById(id uint, deleteFile bool) error {
 	image := database.Image{}
-	err := database.Instance.Where("id = ?", id).First(&image).Error
+	err := database.Instance.Where("id = ?", id).Preload("Library").First(&image).Error
 	if err != nil {
 		return err
 	}
@@ -290,9 +290,24 @@ func DeleteImageById(id uint) error {
 		return err
 	}
 
+	if deleteFile {
+		// delete file
+		err = os.Remove(path.Join(image.Library.Path, image.Path))
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
-
+func DeleteImageByIds(ids []uint, deleteFile bool) error {
+	for _, id := range ids {
+		err := DeleteImageById(id, deleteFile)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func TagImageById(id uint, taggerModel string) ([]*database.Tag, error) {
 	image := database.Image{}
 	err := database.Instance.Where("id = ?", id).Preload("Library").First(&image).Error
