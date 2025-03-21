@@ -221,7 +221,7 @@ var getImageTaggerHandler haruka.RequestHandler = func(context *haruka.Context) 
 		return
 	}
 	model := context.GetQueryString("model")
-	result, err := service.TagImageById(uint(id), model)
+	result, err := service.TagImageById(uint(id), model, 0.7)
 	if err != nil {
 		AbortError(context, err, http.StatusInternalServerError)
 		return
@@ -316,4 +316,28 @@ var deleteImageByIdsHandler haruka.RequestHandler = func(context *haruka.Context
 	context.JSON(haruka.JSON{
 		"success": true,
 	})
+}
+
+var upscaleImageHandler haruka.RequestHandler = func(context *haruka.Context) {
+	id, err := context.GetPathParameterAsInt("id")
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	option := service.UpscaleImageOption{}
+	err = context.BindingInput(&option)
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	image, fileName, err := service.UpscaleImage(uint(id), &option)
+	if err != nil {
+		AbortError(context, err, http.StatusInternalServerError)
+		return
+	}
+	reader := bytes.NewReader(image)
+
+	// Use http.ServeContent to serve the image
+	http.ServeContent(context.Writer, context.Request, fileName, time.Now(), reader)
+
 }

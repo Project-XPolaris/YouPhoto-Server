@@ -13,13 +13,19 @@ import (
 func CreateLibrary(name string, path string, userId uint, isPublic bool) (*database.Library, error) {
 	libraryPath := path
 	if len(libraryPath) == 0 {
-		libraryPath = path2.Join(config.Instance.PrivateLibraryPath, name)
-		isPublic = false
-		if !utils.CheckFileExist(libraryPath) {
-			err := os.Mkdir(libraryPath, os.ModePerm)
-			if err != nil {
-				return nil, err
+		libraryFolderName := utils.GenerateRandomString(10)
+		libraryPath = path2.Join(config.Instance.PrivateLibraryPath, libraryFolderName)
+		for {
+			if !utils.CheckFileExist(libraryPath) {
+				break
 			}
+			libraryFolderName = utils.GenerateRandomString(10)
+			libraryPath = path2.Join(config.Instance.PrivateLibraryPath, libraryFolderName)
+		}
+		isPublic = false
+		err := os.Mkdir(libraryPath, os.ModePerm)
+		if err != nil {
+			return nil, err
 		}
 	}
 	if !utils.CheckFileExist(libraryPath) {

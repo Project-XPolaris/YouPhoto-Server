@@ -9,6 +9,8 @@ import (
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/module"
 	"github.com/projectxpolaris/youphoto/plugins"
+	"github.com/projectxpolaris/youphoto/service"
+	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 	"net/http"
 )
@@ -36,6 +38,8 @@ func main() {
 	appEngine.UsePlugin(plugins.DefaultNSFWCheckPlugin)
 	appEngine.UsePlugin(plugins.DefaultDeepDanbooruPlugin)
 	appEngine.UsePlugin(plugins.DefaultImageTaggerPlugin)
+	appEngine.UsePlugin(plugins.DefaultImageUpscalerPlugin)
+	appEngine.UsePlugin(plugins.DefaultGeoPlugin)
 	appEngine.UsePlugin(&plugins.InitPlugin{})
 	if config.Instance.YouAuthConfig != nil {
 		plugins.CreateYouAuthPlugin()
@@ -57,5 +61,15 @@ func main() {
 	if err != nil {
 		logrus.Fatal(err)
 	}
+	cr := cron.New()
+	_, err = cr.AddFunc("0 2 * * *", func() {
+		autoTag := service.NewAutoTaggerService(appEngine)
+		autoTag.Process()
+	})
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	cr.Start()
+
 	appWrap.RunApp()
 }

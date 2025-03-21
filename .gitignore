@@ -6,3 +6,5 @@ docker-compose.yml
 reg.yml
 main
 local_*_config.yml
+/local
+.vscode

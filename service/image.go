@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/allentom/harukap/plugins/upscaler"
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/utils"
+	"gorm.io/gorm"
 	"io"
 	"os"
 	"path"
@@ -284,7 +286,16 @@ func DeleteImageById(id uint, deleteFile bool) error {
 	}
 	// delete image
 	plugins.GetDefaultStorage().Delete(context.Background(), utils.DefaultBucket, utils.GetThumbnailsPath(image.Thumbnail))
-
+	// clear if it album cover
+	err = database.Instance.Exec("update albums set cover_id = null where cover_id = ?", id).Error
+	if err != nil {
+		return err
+	}
+	// clear album
+	err = database.Instance.Exec("delete from album_image where image_id = ?", id).Error
+	if err != nil {
+		return err
+	}
 	err = database.Instance.Unscoped().Delete(&image).Error
 	if err != nil {
 		return err
@@ -308,7 +319,7 @@ func DeleteImageByIds(ids []uint, deleteFile bool) error {
 	}
 	return nil
 }
-func TagImageById(id uint, taggerModel string) ([]*database.Tag, error) {
+func TagImageById(id uint, taggerModel string, threshold float64) ([]*database.Tag, error) {
 	image := database.Image{}
 	err := database.Instance.Where("id = ?", id).Preload("Library").First(&image).Error
 	if err != nil {
@@ -322,7 +333,7 @@ func TagImageById(id uint, taggerModel string) ([]*database.Tag, error) {
 	if plugins.DefaultImageTaggerPlugin.Client == nil {
 		return nil, fmt.Errorf("no image tagger plugin")
 	}
-	result, err := plugins.DefaultImageTaggerPlugin.Client.TagImage(imageFile, taggerModel)
+	result, err := plugins.DefaultImageTaggerPlugin.Client.TagImage(imageFile, taggerModel, threshold)
 	if err != nil {
 		return nil, err
 	}
@@ -340,26 +351,6 @@ func TagImageById(id uint, taggerModel string) ([]*database.Tag, error) {
 		tagToAddList = append(tagToAddList, tagToAdd)
 	}
 	err = tx.Model(&image).Association("Tags").Append(tagToAddList)
-	//oldTag := image.Tags
-	//var tagsToRemove []*database.Tag
-	//for _, tag := range oldTag {
-	//	for _, newTag := range result {
-	//		if tag.Tag == newTag.Tag {
-	//			tagsToRemove = append(tagsToRemove, tag)
-	//		}
-	//	}
-	//}
-	//for _, tag := range tagsToRemove {
-	//	tx.Unscoped().Delete(tag)
-	//}
-	//newTags := make([]*database.Tag, 0)
-	//for _, tag := range result {
-	//	newTag := database.Tag{
-	//		Tag: tag.Tag,
-	//	}
-	//	tx.Create(&newTag)
-	//	newTags = append(newTags, &newTag)
-	//}
 	tx.Commit()
 	return tagToAddList, nil
 }
@@ -493,4 +484,84 @@ func SaveUploadFile(filename string, file io.Reader, libraryId uint) (*database.
 		return nil, err
 	}
 	return &image, nil
+}
+
+type UpscaleImageOption struct {
+	OutScale    float64 `hsource:"query" hname:"out_scale"`
+	ModelName   string  `hsource:"query" hname:"model_name"`
+	FaceEnhance bool    `hsource:"query" hname:"face_enhance"`
+}
+
+func UpscaleImage(imageId uint, option *UpscaleImageOption) ([]byte, string, error) {
+	if !plugins.DefaultImageUpscalerPlugin.IsEnable() {
+		return nil, "", fmt.Errorf("no image upscaler plugin")
+	}
+	var image database.Image
+	err := database.Instance.Where("id = ?", imageId).Preload("Library").First(&image).Error
+	if err != nil {
+		return nil, "", err
+	}
+	realPath, err := image.GetRealPath()
+	if err != nil {
+		return nil, "", err
+	}
+	file, err := os.Open(realPath)
+	result, err := plugins.DefaultImageUpscalerPlugin.Client.Upscale(file, &upscaler.UpscaleOptions{
+		Model:       option.ModelName,
+		FaceEnhance: option.FaceEnhance,
+		OutScale:    option.OutScale,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	return result, image.Name, nil
+}
+
+func GetImagesWithoutTags() ([]database.Image, error) {
+	var imagesWithoutTags []database.Image
+	// Assuming `database.Instance` is your GORM database connection
+	// Adjust table and column names as per your schema
+	err := database.Instance.
+		Joins("LEFT JOIN tag_images ON tag_images.image_id = images.id").
+		Where("tag_images.tag_id IS NULL").
+		Where("images.tagged = ?", false).
+		Group("images.id").
+		Find(&imagesWithoutTags).Limit(1).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return imagesWithoutTags, nil
+}
+
+func GetTopPhotosByMostOccurringField(db *gorm.DB, field string) ([]database.Image, error) {
+	var results []struct {
+		FieldValue string
+		Count      int
+	}
+	var topPhotos []database.Image
+
+	// Step 1 & 2: Group by the field and count the occurrences
+	err := db.Model(&database.Image{}).
+		Select(field + " AS field_value, COUNT(*) AS count").
+		Group(field).
+		Order("count DESC").
+		Limit(5).
+		Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 3: For each top group, retrieve the photos
+	for _, result := range results {
+		var photos []database.Image
+		err := db.Where(field+" = ?", result.FieldValue).
+			Find(&photos).Error
+		if err != nil {
+			return nil, err
+		}
+		topPhotos = append(topPhotos, photos...)
+	}
+
+	return topPhotos, nil
 }

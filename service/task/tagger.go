@@ -26,29 +26,10 @@ func (t *TaggerTask) Stop() error {
 }
 
 func (t *TaggerTask) Start() error {
-	_, err := service.TagImageById(t.option.ImageId, t.option.TaggerModel)
+	_, err := service.TagImageById(t.option.ImageId, t.option.TaggerModel, 0.7)
 	if err != nil {
 		return t.AbortError(err)
 	}
-	//savePredictions := make([]*database.TaggerResult, 0)
-	//for _, prediction := range result {
-	//	if prediction.Prob > 0.5 {
-	//		savePredictions = append(savePredictions, &database.TaggerResult{
-	//			ImageId: t.option.ImageId,
-	//			Tag:     prediction.Tag,
-	//			Prob:    prediction.Prob,
-	//		})
-	//	}
-	//}
-	//err = database.Instance.Where("image_id = ?", t.option.ImageId).Delete(&database.TaggerResult{}).Error
-	//if err != nil {
-	//	return t.AbortError(err)
-	//}
-	//err = database.Instance.Create(&savePredictions).Error
-	//if err != nil {
-	//	return t.AbortError(err)
-	//}
-	//t.Predictions = savePredictions
 	t.Done()
 	return nil
 }

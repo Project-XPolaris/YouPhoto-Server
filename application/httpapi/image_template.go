@@ -6,58 +6,76 @@ import (
 )
 
 type BaseImageTemplate struct {
-	Id                 uint                   `json:"id"`
-	Name               string                 `json:"name"`
-	Thumbnail          string                 `json:"thumbnail"`
-	Width              uint                   `json:"width"`
-	Height             uint                   `json:"height"`
-	Domain             string                 `json:"domain"`
-	Created            string                 `json:"created"`
-	Updated            string                 `json:"updated"`
-	BlurHash           string                 `json:"blurHash"`
-	ImageColors        []ImageColorTemplate   `json:"imageColors"`
-	Classify           []PredictionTemplate   `json:"classify"`
-	Hentai             float64                `json:"hentai"`
-	Drawings           float64                `json:"drawings"`
-	Neutral            float64                `json:"neutral"`
-	Sexy               float64                `json:"sexy"`
-	Porn               float64                `json:"porn"`
-	DeepdanbooruResult []DeepdanbooruTemplate `json:"deepdanbooruResult"`
-	Tag                []ImageTagTemplate     `json:"tag"`
-	Lat                float64                `json:"lat,omitempty"`
-	Lng                float64                `json:"lng,omitempty"`
-	Fnumber            float64                `json:"fnumber,omitempty"`
-	FocalLength        float64                `json:"focalLength,omitempty"`
-	ISO                float64                `json:"iso,omitempty"`
-	Time               string                 `json:"time,omitempty"`
+	Id                  uint                   `json:"id"`
+	Name                string                 `json:"name"`
+	Thumbnail           string                 `json:"thumbnail"`
+	Width               uint                   `json:"width"`
+	Height              uint                   `json:"height"`
+	Domain              string                 `json:"domain"`
+	Created             string                 `json:"created"`
+	Updated             string                 `json:"updated"`
+	BlurHash            string                 `json:"blurHash"`
+	ImageColors         []ImageColorTemplate   `json:"imageColors"`
+	Classify            []PredictionTemplate   `json:"classify"`
+	Hentai              float64                `json:"hentai"`
+	Drawings            float64                `json:"drawings"`
+	Neutral             float64                `json:"neutral"`
+	Sexy                float64                `json:"sexy"`
+	Porn                float64                `json:"porn"`
+	DeepdanbooruResult  []DeepdanbooruTemplate `json:"deepdanbooruResult"`
+	Tag                 []ImageTagTemplate     `json:"tag"`
+	Lat                 float64                `json:"lat,omitempty"`
+	Lng                 float64                `json:"lng,omitempty"`
+	Fnumber             float64                `json:"fnumber,omitempty"`
+	FocalLength         float64                `json:"focalLength,omitempty"`
+	ISO                 float64                `json:"iso,omitempty"`
+	Time                string                 `json:"time,omitempty"`
+	LibraryId           uint                   `json:"libraryId,omitempty"`
+	Country             string                 `json:"country,omitempty"`
+	AdministrativeArea1 string                 `json:"administrativeArea1,omitempty"`
+	AdministrativeArea2 string                 `json:"administrativeArea2,omitempty"`
+	Locality            string                 `json:"locality,omitempty"`
+	Route               string                 `json:"route,omitempty"`
+	StreetNumber        string                 `json:"streetNumber,omitempty"`
+	Premise             string                 `json:"premise,omitempty"`
+	Address             string                 `json:"address,omitempty"`
 }
 
 func NewBaseImageTemplate(data *database.Image) BaseImageTemplate {
 	return BaseImageTemplate{
-		Id:                 data.Model.ID,
-		Name:               data.Name,
-		Thumbnail:          data.Thumbnail,
-		Width:              data.Width,
-		Height:             data.Height,
-		Created:            data.Model.CreatedAt.Format(TimeFormat),
-		Updated:            data.Model.UpdatedAt.Format(TimeFormat),
-		Domain:             data.Domain,
-		BlurHash:           data.BlurHash,
-		ImageColors:        NewColorTemplateList(data.ImageColor),
-		Classify:           NewPredictionTemplateList(data.Prediction),
-		Hentai:             data.Hentai,
-		Drawings:           data.Drawings,
-		Neutral:            data.Neutral,
-		Sexy:               data.Sexy,
-		Porn:               data.Porn,
-		DeepdanbooruResult: NewDeepdanbooruTemplateList(data.DeepdanbooruResult),
-		Tag:                NewImageTagTemplateList(data.Tags),
-		Lat:                data.Lat,
-		Lng:                data.Lng,
-		Fnumber:            data.Fnumber,
-		FocalLength:        data.FocalLength,
-		ISO:                data.ISO,
-		Time:               data.Time.Format(TimeFormat),
+		Id:                  data.Model.ID,
+		Name:                data.Name,
+		Thumbnail:           data.Thumbnail,
+		Width:               data.Width,
+		Height:              data.Height,
+		Created:             data.Model.CreatedAt.Format(TimeFormat),
+		Updated:             data.Model.UpdatedAt.Format(TimeFormat),
+		Domain:              data.Domain,
+		BlurHash:            data.BlurHash,
+		ImageColors:         NewColorTemplateList(data.ImageColor),
+		Classify:            NewPredictionTemplateList(data.Prediction),
+		Hentai:              data.Hentai,
+		Drawings:            data.Drawings,
+		Neutral:             data.Neutral,
+		Sexy:                data.Sexy,
+		Porn:                data.Porn,
+		DeepdanbooruResult:  NewDeepdanbooruTemplateList(data.DeepdanbooruResult),
+		Tag:                 NewImageTagTemplateList(data.Tags),
+		Lat:                 data.Lat,
+		Lng:                 data.Lng,
+		Fnumber:             data.Fnumber,
+		FocalLength:         data.FocalLength,
+		ISO:                 data.ISO,
+		Time:                data.Time.Format(TimeFormat),
+		LibraryId:           data.LibraryId,
+		Country:             data.Country,
+		AdministrativeArea1: data.AdministrativeArea1,
+		AdministrativeArea2: data.AdministrativeArea2,
+		Locality:            data.Locality,
+		Route:               data.Route,
+		StreetNumber:        data.StreetNumber,
+		Premise:             data.Premise,
+		Address:             data.Address,
 	}
 }
 

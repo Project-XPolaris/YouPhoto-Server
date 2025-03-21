@@ -135,10 +135,19 @@ func (t *CreateImageTask) Start() error {
 	if err == nil {
 		lat, long, err := x.LatLong()
 		if err == nil && lat != 0 && long != 0 && !math.IsNaN(lat) && !math.IsNaN(long) {
-
 			image.Lat = lat
 			image.Lng = long
-			fmt.Println(lat, long)
+			address, _ := service.GetGeoToAddress(lat, long)
+			if address != nil {
+				image.Address = address.Full
+				image.Country = address.Country
+				image.AdministrativeArea1 = address.AdministrativeArea1
+				image.AdministrativeArea2 = address.AdministrativeArea2
+				image.Locality = address.Locality
+				image.Route = address.Route
+				image.StreetNumber = address.StreetNumber
+				image.Premise = address.Premise
+			}
 		}
 		orientation, err := x.Get(exif.Orientation)
 		if err == nil {
@@ -387,7 +396,24 @@ func SaveImageByFile(
 	if err != nil {
 		return nil, err
 	}
-	savePath := filepath.Join(library.Path, filename)
+	fmt.Sprintf("image size: %d", file)
+	imageBytes := make([]byte, 1024*1024*200)
+	_, err = file.Read(imageBytes)
+
+	md5, err := utils.GetMd5FromBytes(imageBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// check if the image already exists
+	var image database.Image
+	err = database.Instance.Where("library_id = ?", libraryId).Where("md5 = ?", md5).First(&image).Error
+	if image.ID != 0 {
+		return &image, nil
+	}
+
+	// check if has same name image
+	savePath := utils.GetSaveFileName(library.Path, filename)
 
 	// Create a file in the savePath
 	outFile, err := os.Create(savePath)
@@ -397,7 +423,7 @@ func SaveImageByFile(
 	defer outFile.Close()
 
 	// Write the content from the provided file to the new file
-	_, err = io.Copy(outFile, file)
+	_, err = outFile.Write(imageBytes)
 	if err != nil {
 		return nil, err
 	}
