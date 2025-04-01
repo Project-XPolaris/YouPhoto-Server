@@ -1,4 +1,4 @@
-ARG GOLANG_VERSION=1.19
+ARG GOLANG_VERSION=1.23.4
 FROM golang:${GOLANG_VERSION}-buster as builder
 ARG GOPROXY=https://goproxy.cn
 RUN sed -i 's/ports.ubuntu.com/mirror.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
