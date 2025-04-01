@@ -3,6 +3,7 @@ package module
 import (
 	"bytes"
 	"encoding/gob"
+
 	"github.com/allentom/harukap"
 	"github.com/allentom/harukap/commons"
 	"github.com/allentom/harukap/module/auth"
@@ -16,7 +17,7 @@ var Auth = &auth.AuthModule{
 
 func CreateAuthModule() {
 	Auth.ConfigProvider = config.DefaultConfigProvider
-	Auth.AddCacheStore(&UserSerializer{})
+	// Auth.AddCacheStore(&UserSerializer{})
 	Auth.InitModule()
 }
 
