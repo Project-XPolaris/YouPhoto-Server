@@ -5,6 +5,14 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	image2 "image"
+	"io"
+	"math"
+	"os"
+	"path/filepath"
+	"sort"
+	"time"
+
 	"github.com/allentom/harukap/module/task"
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/plugins"
@@ -14,13 +22,6 @@ import (
 	"github.com/rwcarlsen/goexif/mknote"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
-	image2 "image"
-	"io"
-	"math"
-	"os"
-	"path/filepath"
-	"sort"
-	"time"
 )
 
 type ProcessImageOption struct {
@@ -307,7 +308,7 @@ func (t *CreateImageTask) Start() error {
 		}
 	}()
 
-	if ((isUpdate || option.ForceTagger) && plugins.DefaultImageTaggerPlugin.Enable) && option.EnableTagger {
+	if ((isUpdate || option.ForceTagger) && plugins.DefaultImageTaggerPlugin.IsEnable()) && option.EnableTagger {
 		taggerTask := NewTaggerTask(
 			&TaggerTaskOption{
 				Uid:          t.option.Uid,

@@ -3,17 +3,18 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/allentom/harukap/plugins/upscaler"
-	"github.com/projectxpolaris/youphoto/database"
-	"github.com/projectxpolaris/youphoto/plugins"
-	"github.com/projectxpolaris/youphoto/utils"
-	"gorm.io/gorm"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/allentom/harukap/plugins/upscaler"
+	"github.com/projectxpolaris/youphoto/database"
+	"github.com/projectxpolaris/youphoto/plugins"
+	"github.com/projectxpolaris/youphoto/utils"
+	"gorm.io/gorm"
 )
 
 type ImagesQueryBuilder struct {
@@ -330,10 +331,7 @@ func TagImageById(id uint, taggerModel string, threshold float64) ([]*database.T
 	if err != nil {
 		return nil, err
 	}
-	if plugins.DefaultImageTaggerPlugin.Client == nil {
-		return nil, fmt.Errorf("no image tagger plugin")
-	}
-	result, err := plugins.DefaultImageTaggerPlugin.Client.TagImage(imageFile, taggerModel, threshold)
+	result, err := plugins.DefaultImageTaggerPlugin.TagImage(imageFile, taggerModel, threshold)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +389,7 @@ func GetTaggerList() ([]string, error) {
 	if !plugins.DefaultImageTaggerPlugin.IsEnable() {
 		return []string{}, nil
 	}
-	state, err := plugins.DefaultImageTaggerPlugin.Client.GetTaggerState()
+	state, err := plugins.DefaultImageTaggerPlugin.GetTaggerState()
 	if err != nil {
 		return nil, err
 	}
