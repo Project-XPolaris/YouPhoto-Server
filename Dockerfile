@@ -1,5 +1,5 @@
 # 构建阶段
-FROM golang:1.24-alpine AS builder
+FROM golang:1.24.6-alpine AS builder
 
 # 添加元数据
 LABEL maintainer="ProjectXPolaris"
@@ -10,6 +10,7 @@ ARG GOPROXY=https://goproxy.cn
 ENV GOPROXY=${GOPROXY}
 ENV CGO_ENABLED=0
 ENV GOOS=linux
+ENV GOTOOLCHAIN=local
 
 # 设置工作目录
 WORKDIR /build

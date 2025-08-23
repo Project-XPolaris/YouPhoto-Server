@@ -1,9 +1,12 @@
 package main
 
 import (
+	"net/http"
+
 	"github.com/allentom/haruka"
 	"github.com/allentom/harukap"
 	"github.com/allentom/harukap/cli"
+	"github.com/allentom/harukap/plugins/nacos"
 	"github.com/projectxpolaris/youphoto/application/httpapi"
 	"github.com/projectxpolaris/youphoto/config"
 	"github.com/projectxpolaris/youphoto/database"
@@ -12,7 +15,6 @@ import (
 	"github.com/projectxpolaris/youphoto/service"
 	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
-	"net/http"
 )
 
 func main() {
@@ -36,6 +38,14 @@ func main() {
 	appEngine.UsePlugin(plugins.StorageEnginePlugin)
 	appEngine.UsePlugin(plugins.DefaultImageClassifyPlugin)
 	appEngine.UsePlugin(plugins.DefaultNSFWCheckPlugin)
+	// init nacos (optional)
+	nacosPlugin, err := nacos.NewNacosPluginFromYAML(appEngine.ConfigProvider, appEngine.ConfigProvider.Manager.GetString("application"), 8609)
+	if err == nil && nacosPlugin != nil {
+		plugins.DefaultNacosPlugin = nacosPlugin
+		appEngine.UsePlugin(nacosPlugin)
+	} else if err != nil {
+		logrus.Infof("init nacos plugin failed: %v", err)
+	}
 	appEngine.UsePlugin(plugins.DefaultDeepDanbooruPlugin)
 	appEngine.UsePlugin(plugins.DefaultImageTaggerPlugin)
 	appEngine.UsePlugin(plugins.DefaultImageUpscalerPlugin)
