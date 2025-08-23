@@ -26,7 +26,7 @@ COPY . .
 RUN go build -o youphoto ./main.go
 
 # 运行阶段
-FROM alpine:latest
+FROM alpine:3.20
 
 # 安装基础依赖
 RUN apk --no-cache add ca-certificates tzdata
