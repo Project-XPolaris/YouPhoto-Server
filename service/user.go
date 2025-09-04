@@ -15,3 +15,12 @@ func GetUserById(uid string) (*database.User, error) {
 	}
 	return &user, nil
 }
+
+func GetUserByDatabaseId(id uint) (*database.User, error) {
+	var user database.User
+	err := database.Instance.First(&user, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}

@@ -1,12 +1,13 @@
 package httpapi
 
 import (
+	"net/http"
+
 	"github.com/allentom/haruka"
 	"github.com/allentom/haruka/middleware"
 	"github.com/projectxpolaris/youphoto/module"
 	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 )
 
 var Logger = log.New().WithFields(log.Fields{
@@ -46,7 +47,6 @@ func GetEngine() *haruka.Engine {
 	e.Router.GET("/image/{id:[0-9]+}/thumbnail", getImageThumbnailHandler)
 	e.Router.GET("/image/{id:[0-9]+}/near", getNearImageHandler)
 	e.Router.GET("/image/{id:[0-9]+}/tagger", getImageTaggerHandler)
-	e.Router.GET("/image/{id:[0-9]+}/album", getAlbumDetailHandler)
 	e.Router.POST("/image/{id:[0-9]+}/upscale", upscaleImageHandler)
 	e.Router.DELETE("/images", deleteImageByIdsHandler)
 	e.Router.POST("/image/upload", uploadImageByFileHandler)
@@ -54,6 +54,9 @@ func GetEngine() *haruka.Engine {
 	e.Router.DELETE("/album/{id:[0-9]+}/image", removeImageFromAlbumHandler)
 	e.Router.POST("/album", createAlbumHandler)
 	e.Router.GET("/albums", getAlbumListHandler)
+	e.Router.GET("/album/{id:[0-9]+}", getAlbumDetailHandler)
+	e.Router.PUT("/album/{id:[0-9]+}", updateAlbumHandler)
+	e.Router.POST("/album/{id:[0-9]+}/tags", addTagsToAlbumHandler)
 	e.Router.DELETE("/album/{id:[0-9]+}", removeAlbumHandler)
 	e.Router.GET("/tags", getImageTagListHandler)
 	e.Router.POST("/image/base64", uploadImageByBase64Handler)

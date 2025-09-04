@@ -6,6 +6,7 @@ type Tag struct {
 	gorm.Model
 	Tag    string
 	Images []*Image `gorm:"many2many:tag_images;"`
+	Albums []*Album `gorm:"many2many:album_tags;"`
 }
 
 type TagImage struct {

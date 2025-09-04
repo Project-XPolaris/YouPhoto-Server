@@ -2,10 +2,11 @@ package httpapi
 
 import (
 	"errors"
+	"net/http"
+
 	"github.com/allentom/haruka"
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/service"
-	"net/http"
 )
 
 type CreateAlbumRequestBody struct {
@@ -98,6 +99,15 @@ var getAlbumListHandler haruka.RequestHandler = func(context *haruka.Context) {
 		AbortError(context, err, http.StatusBadRequest)
 		return
 	}
+	// Ensure optional filters are captured
+	tags := context.GetQueryString("tags")
+	if len(tags) > 0 {
+		queryBuilder.Tags = tags
+	}
+	order := context.GetQueryString("order")
+	if len(order) > 0 {
+		queryBuilder.Order = order
+	}
 	if claims, ok := context.Param["claim"]; ok {
 		queryBuilder.Uid = claims.(*database.User).Uid
 	}
@@ -153,6 +163,66 @@ var getAlbumDetailHandler haruka.RequestHandler = func(context *haruka.Context) 
 			return
 		}
 		MakeSuccessResponse(NewBaseAlbumTemplate(album), context)
+	} else {
+		AbortError(context, errors.New("need auth"), http.StatusBadRequest)
+		return
+	}
+}
+
+type UpdateAlbumRequestBody struct {
+	Name string `json:"name"`
+}
+
+var updateAlbumHandler haruka.RequestHandler = func(context *haruka.Context) {
+	var requestBody UpdateAlbumRequestBody
+	err := context.ParseJson(&requestBody)
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	id, err := context.GetPathParameterAsInt("id")
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	if claims, ok := context.Param["claim"]; ok {
+		uid := claims.(*database.User).Uid
+		err := service.UpdateAlbumName(uint(id), uid, requestBody.Name)
+		if err != nil {
+			AbortError(context, err, http.StatusInternalServerError)
+			return
+		}
+		MakeSuccessResponse(nil, context)
+	} else {
+		AbortError(context, errors.New("need auth"), http.StatusBadRequest)
+		return
+	}
+}
+
+type AddTagsToAlbumRequestBody struct {
+	TagNames []string `json:"tagNames"`
+}
+
+var addTagsToAlbumHandler haruka.RequestHandler = func(context *haruka.Context) {
+	var requestBody AddTagsToAlbumRequestBody
+	err := context.ParseJson(&requestBody)
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	id, err := context.GetPathParameterAsInt("id")
+	if err != nil {
+		AbortError(context, err, http.StatusBadRequest)
+		return
+	}
+	if claims, ok := context.Param["claim"]; ok {
+		uid := claims.(*database.User).Uid
+		err := service.AddTagsToAlbum(uint(id), uid, requestBody.TagNames)
+		if err != nil {
+			AbortError(context, err, http.StatusInternalServerError)
+			return
+		}
+		MakeSuccessResponse(nil, context)
 	} else {
 		AbortError(context, errors.New("need auth"), http.StatusBadRequest)
 		return

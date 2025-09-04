@@ -461,7 +461,7 @@ func SaveImageByFile(
 			album = database.Album{
 				Name:    albumName,
 				OwnerId: uid,
-				CoverId: createImageTask.Image.ID,
+				CoverId: &createImageTask.Image.ID, // 使用指针
 			}
 			err = database.Instance.Create(&album).Error
 			if err != nil {

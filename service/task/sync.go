@@ -2,13 +2,15 @@ package task
 
 import (
 	"errors"
+	"path/filepath"
+	"strings"
+
 	"github.com/allentom/harukap/module/task"
 	"github.com/project-xpolaris/youplustoolkit/youlog"
 	"github.com/projectxpolaris/youphoto/database"
 	"github.com/projectxpolaris/youphoto/module"
 	"github.com/projectxpolaris/youphoto/plugins"
 	"github.com/projectxpolaris/youphoto/service"
-	"path/filepath"
 )
 
 type SyncLibraryTask struct {
@@ -18,6 +20,7 @@ type SyncLibraryTask struct {
 	library  *database.Library
 	Logger   *youlog.Scope
 	stopFlag bool
+	userId   uint // 添加真实的用户ID字段
 }
 
 func (t *SyncLibraryTask) Stop() error {
@@ -54,6 +57,10 @@ func (t *SyncLibraryTask) Start() error {
 		return t.AbortError(err)
 	}
 	t.output.Total = int64(len(scanFileTask.pathList))
+
+	// 创建相册的缓存，避免重复创建
+	albumCache := make(map[string]*database.Album)
+
 	for idx, path := range scanFileTask.pathList {
 		if t.stopFlag {
 			t.Done()
@@ -67,6 +74,42 @@ func (t *SyncLibraryTask) Start() error {
 			t.AbortFileError(path, err)
 			continue
 		}
+
+		// 检查是否需要创建相册
+		albumInfo := scanFileTask.GetAlbumInfoForPath(path)
+		var album *database.Album
+		if albumInfo != nil && albumInfo.Name != "" {
+			// 检查缓存中是否已有相册
+			if cachedAlbum, exists := albumCache[albumInfo.Name]; exists {
+				album = cachedAlbum
+			} else {
+				// 获取用户信息并创建相册
+				user, err := service.GetUserByDatabaseId(t.userId)
+				if err != nil {
+					t.Logger.Warn("获取用户信息失败: " + err.Error())
+				} else {
+					// 创建或获取相册
+					album, err = service.CreateAlbum(albumInfo.Name, user.Uid)
+					if err != nil {
+						t.Logger.Warn("创建相册失败: " + err.Error())
+					} else {
+						albumCache[albumInfo.Name] = album
+						t.Logger.Info("创建相册: " + albumInfo.Name)
+
+						// 为相册添加标签
+						if len(albumInfo.Tags) > 0 {
+							err = service.AddTagsToAlbum(album.ID, user.Uid, albumInfo.Tags)
+							if err != nil {
+								t.Logger.Warn("添加相册标签失败: " + err.Error())
+							} else {
+								t.Logger.Info("为相册添加标签: " + strings.Join(albumInfo.Tags, ", "))
+							}
+						}
+					}
+				}
+			}
+		}
+
 		createImageTask := NewCreateImageTask(&CreateImageTaskOption{
 			Uid:          t.Owner,
 			Path:         imagePath,
@@ -79,6 +122,18 @@ func (t *SyncLibraryTask) Start() error {
 		if err != nil {
 			t.AbortFileError(path, err)
 		} else {
+			// 如果有相册且图片创建成功，将图片添加到相册
+			if album != nil && createImageTask.Image != nil {
+				user, err := service.GetUserByDatabaseId(t.userId)
+				if err != nil {
+					t.Logger.Warn("获取用户信息失败: " + err.Error())
+				} else {
+					err = service.AddImageToAlbum(album.ID, user.Uid, createImageTask.Image.ID)
+					if err != nil {
+						t.Logger.Warn("添加图片到相册失败: " + err.Error())
+					}
+				}
+			}
 			t.OnFileComplete()
 		}
 	}
@@ -159,6 +214,7 @@ func CreateSyncLibraryTask(option CreateScanTaskOption) (*SyncLibraryTask, error
 		return nil, errors.New("library not found")
 	}
 	newTask.library = library
+	newTask.userId = option.UserId // 设置真实的用户ID
 	output := ScanTaskOutput{
 		Id:   library.ID,
 		Path: library.Path,
